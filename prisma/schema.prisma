@@ -1,0 +1,666 @@
+// This is your Prisma schema file
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// USERS & AUTHENTICATION
+// ============================================
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  
+  // Basic Identity
+  firstName String   @map("first_name")
+  lastName  String   @map("last_name")
+  displayName String? @map("display_name") // Optional nickname
+  
+  // Profile - Foundation for Social Network
+  bio          String? @db.Text
+  avatarUrl    String? @map("avatar_url")
+  timezone     String? // e.g., "America/Los_Angeles"
+  location     String? // e.g., "Portland, OR" - free text for privacy
+  
+  // Skills & Passions - JSON for flexibility
+  skills       Json?   @default("[]") // [{name: "gardening", level: "beginner|intermediate|advanced|expert"}]
+  passions     Json?   @default("[]") // ["sustainability", "community building"]
+  wantsToLearn Json?   @default("[]") @map("wants_to_learn") // ["composting", "facilitation"]
+  
+  // Availability
+  hoursPerWeek Int?    @map("hours_per_week") // How much time they can contribute
+  remoteOnly   Boolean @default(false) @map("remote_only")
+  
+  // Profile Visibility - Privacy Controls
+  profileVisibility String @default("public") @map("profile_visibility")
+  // 'public' (anyone), 'network' (only members of my orgs), 'private' (only me)
+  
+  // Social Links (Optional)
+  socialLinks  Json?   @default("{}") @map("social_links")
+  // {linkedin: "url", github: "url", twitter: "url", website: "url"}
+  
+  // Internal metrics (for AI matching ONLY - never displayed as scores)
+  contributionScore Int @default(0) @map("contribution_score")
+  
+  // Password reset
+  resetToken        String?   @map("reset_token")
+  resetTokenExpiry  DateTime? @map("reset_token_expiry")
+  
+  // Metadata
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  lastActiveAt DateTime? @map("last_active_at")
+
+  // Relations
+  members Member[]
+  endorsementsGiven Endorsement[] @relation("GivenEndorsements")
+  endorsementsReceived Endorsement[] @relation("ReceivedEndorsements")
+
+  @@map("users")
+}
+
+// ============================================
+// ORGANIZATIONS
+// ============================================
+
+model Organization {
+  id          String   @id @default(uuid())
+  name        String
+  slug        String   @unique
+  description String?
+  
+  // Location (REQUIRED - from v2.0)
+  city           String
+  stateProvince  String  @map("state_province")
+  postalCode     String  @map("postal_code")
+  country        String
+  
+  // Location coordinates (for proximity search in v2.0)
+  latitude      Float?
+  longitude     Float?
+  
+  // Discovery - Foundation for Social Network
+  isPublic         Boolean @default(false) @map("is_public")
+  shortDescription String? @map("short_description") // One-liner for search results
+  tags             Json?   @default("[]") // ["gardening", "sustainability", "community"]
+  memberCount      Int     @default(0) @map("member_count") // Auto-updated
+  
+  // Governance config
+  quorumPercentage    Int     @default(50) @map("quorum_percentage")
+  approvalThreshold   Int     @default(60) @map("approval_threshold")
+  votingPeriodHours   Int     @default(72) @map("voting_period_hours")
+  
+  // Treasury
+  treasuryBalance     Decimal @default(0) @map("treasury_balance") @db.Decimal(12, 2)
+  
+  // Financial Items Feature (v2.1 - OPTIONAL)
+  enableFinancialItems Boolean @default(false) @map("enable_financial_items")
+  financialItemConfig  Json?   @default("{}") @map("financial_item_config")
+  
+  // Metadata
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  members         Member[]
+  proposals       Proposal[]
+  values          Value[]
+  tasks           Task[]
+  transactions    Transaction[]
+  transactionCategories TransactionCategory[]
+  financialItems  FinancialItem[]
+  aiAgentActions  AiAgentAction[]
+  auditLogs       AuditLog[]
+  endorsements    Endorsement[]
+  projects          Project[]
+  captainsLog       CaptainsLog[] 
+
+  @@map("organizations")
+}
+
+// ============================================
+// MEMBERS
+// ============================================
+model Member {
+  id     String @id @default(uuid())
+  orgId  String @map("org_id")
+  userId String @map("user_id") // NOW REQUIRED (not optional)
+  
+  // Membership-specific (NOT identity - that's on User)
+  role   String // 'founder', 'steward', 'working', 'advisor'
+  status String @default("pending") // 'pending', 'active', 'inactive'
+  
+  // Invitation
+  inviteToken       String?   @map("invite_token")
+  inviteTokenExpiry DateTime? @map("invite_token_expiry")
+  invitedBy         String?   @map("invited_by")
+  
+  // Founder special handling
+  founderExpiresAt DateTime? @map("founder_expires_at")
+  
+  // Org-specific contributions (factual counts - can be displayed transparently)
+  tasksCompleted    Int @default(0) @map("tasks_completed")
+  proposalCount  Int @default(0) @map("proposals_count")
+  votescast         Int @default(0) @map("votes_cast")
+  
+  // Custom role/title in this org (optional)
+  customTitle String? @map("custom_title") // "Head Gardener", "Event Coordinator"
+  
+  // Metadata
+  joinedAt  DateTime? @map("joined_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  organization    Organization      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  proposalsCreated Proposal[]       @relation("ProposalCreator")
+  proposalsReviewed Proposal[]      @relation("ProposalReviewer")
+  votes           Vote[]
+  tasksCreated    Task[]            @relation("TaskCreator")
+  tasksAssigned   Task[]            @relation("TaskAssignee")
+  aiAgentActions  AiAgentAction[]
+  auditLogs       AuditLog[]
+  financialItemsCreated FinancialItem[] @relation("FinancialItemCreator")
+  financialItemsApproved FinancialItem[] @relation("FinancialItemApprover")
+  transactionsCreated Transaction[]
+  projectsCreated   Project[]   @relation("ProjectCreator")
+  proposalVersions ProposalVersion[] @relation("ProposalVersionCreator") 
+  captainsLogEntries CaptainsLog[] @relation("CaptainsLogActor")
+
+
+  @@unique([orgId, userId]) // One membership per user per org
+  @@map("members")
+}
+
+// ============================================
+// PROPOSALS
+// ============================================
+
+model Proposal {
+  id    String @id @default(uuid())
+  orgId String @map("org_id")
+  
+  // Content
+  title            String
+  objective        String   @db.Text
+  description      String   @db.Text
+  rationale        String   @db.Text
+  successCriteria  String   @db.Text @map("success_criteria")
+  
+  // Financial (optional)
+  financialRequest Decimal? @map("financial_request") @db.Decimal(12, 2)
+  budgetBreakdown  Json?    @map("budget_breakdown")
+  
+  // State machine (9 states from spec)
+  state String @default("draft")
+  // 'draft', 'in_review', 'needs_revision', 'submitted', 
+  // 'voting', 'approved', 'rejected', 'executed', 'cancelled'
+  
+  stateChangedAt DateTime @default(now()) @map("state_changed_at")
+  
+  // Review workflow
+  reviewFeedback String? @db.Text @map("review_feedback")
+  reviewStatus   String? @map("review_status")
+  reviewedBy     String? @map("reviewed_by")
+  reviewedAt     DateTime? @map("reviewed_at")
+  
+  // Voting
+  votingStartsAt DateTime? @map("voting_starts_at")
+  votingEndsAt   DateTime? @map("voting_ends_at")
+  
+  // Results
+  votesApprove Int @default(0) @map("votes_approve")
+  votesReject  Int @default(0) @map("votes_reject")
+  votesAbstain Int @default(0) @map("votes_abstain")
+  
+  // Execution
+  executedAt    DateTime? @map("executed_at")
+  transactionId String?   @map("transaction_id")
+  
+  // Metadata
+  createdBy String    @map("created_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  organization      Organization       @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  creator           Member             @relation("ProposalCreator", fields: [createdBy], references: [id])
+  reviewer          Member?            @relation("ProposalReviewer", fields: [reviewedBy], references: [id])
+  transaction       Transaction?       @relation(fields: [transactionId], references: [id])
+  versions          ProposalVersion[]
+  votes             Vote[]
+  projects          Project[]   
+  aiAgentActions    AiAgentAction[]
+
+  @@map("proposals")
+}
+
+// ============================================
+// PROPOSAL VERSIONS
+// ============================================
+
+model ProposalVersion {
+  id         String   @id @default(uuid())
+  proposalId String   @map("proposal_id")
+  
+  // Snapshot of content
+  title            String
+  objective        String   @db.Text
+  description      String   @db.Text
+  rationale        String   @db.Text
+  successCriteria  String   @db.Text @map("success_criteria")
+  financialRequest Decimal? @map("financial_request") @db.Decimal(12, 2)
+  budgetBreakdown  Json?    @map("budget_breakdown")
+  
+  // Version info
+  versionNumber Int      @map("version_number")
+  changeReason  String?  @db.Text @map("change_reason")
+  createdAt     DateTime @default(now()) @map("created_at")
+  createdBy     String   @map("created_by")  // ADD THIS LINE
+
+  // Relations
+  proposal Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  creator  Member   @relation("ProposalVersionCreator", fields: [createdBy], references: [id])
+
+
+  @@unique([proposalId, versionNumber])
+  @@map("proposal_versions")
+}
+
+// ============================================
+// VOTES
+// ============================================
+
+model Vote {
+  id         String @id @default(uuid())
+  proposalId String @map("proposal_id")
+  memberId   String @map("member_id")
+  
+  // Vote
+  vote    String // 'approve', 'reject', 'abstain'
+  comment String? @db.Text
+  
+  // Metadata
+  votedAt   DateTime @default(now()) @map("voted_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  proposal Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  member   Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([proposalId, memberId])
+  @@map("votes")
+}
+
+model Project {
+  id         String @id @default(uuid())
+  orgId      String @map("org_id")
+  proposalId String @map("proposal_id")
+  
+  // Project info
+  name        String
+  description String? @db.Text
+  status      String  @default("planning") // 'planning', 'active', 'on_hold', 'completed', 'cancelled'
+  
+  // Timeline
+  startDate   DateTime? @map("start_date")
+  targetDate  DateTime? @map("target_date")
+  completedAt DateTime? @map("completed_at")
+  
+  // Progress tracking
+  totalTasks      Int @default(0) @map("total_tasks")
+  completedTasks  Int @default(0) @map("completed_tasks")
+  
+  // Metadata
+  createdBy String   @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  proposal     Proposal     @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  creator      Member       @relation("ProjectCreator", fields: [createdBy], references: [id])
+  tasks        Task[]
+
+  @@map("projects")
+}
+
+// ============================================
+// TASKS
+// ============================================
+
+model Task {
+  id        String  @id @default(uuid())
+  orgId     String  @map("org_id")
+  projectId String? @map("project_id")  // CHANGED: now links to project
+  
+  // Task info
+  title       String
+  description String? @db.Text
+  status      String  @default("not_started") // 'not_started', 'in_progress', 'blocked', 'completed'
+  priority    String  @default("medium") // 'low', 'medium', 'high', 'urgent'
+  
+  // Assignment
+  assignedTo String?   @map("assigned_to")
+  dueDate    DateTime? @map("due_date")
+  
+  // Dependencies
+  dependsOnTaskIds String[] @map("depends_on_task_ids")
+  blocksTaskIds    String[] @map("blocks_task_ids")
+  
+  // Metadata
+  createdBy   String    @map("created_by")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  completedAt DateTime? @map("completed_at")
+
+  // Relations
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  project      Project?     @relation(fields: [projectId], references: [id], onDelete: Cascade)  // CHANGED
+  creator      Member       @relation("TaskCreator", fields: [createdBy], references: [id])
+  assignee     Member?      @relation("TaskAssignee", fields: [assignedTo], references: [id])
+
+  @@map("tasks")
+}
+
+// ============================================
+// VALUES
+// ============================================
+
+model Value {
+  id    String @id @default(uuid())
+  orgId String @map("org_id")
+  
+  // Value content
+  name        String
+  description String @db.Text
+  keywords    String[] // For AI matching
+  
+  // Configuration
+  isActive    Boolean @default(true) @map("is_active")
+  displayOrder Int    @default(0) @map("display_order")
+  
+  // Metadata
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@map("values")
+}
+
+// ============================================
+// TRANSACTIONS (v2.1 - Used by ALL orgs)
+// ============================================
+
+model Transaction {
+  id    String @id @default(uuid())
+  orgId String @map("org_id")
+  
+  // Transaction details
+  transactionDate DateTime @map("transaction_date")
+  amount          Decimal  @db.Decimal(12, 2)
+  type            String   // 'revenue', 'expense'
+  
+  // Categorization
+  categoryId  String? @map("category_id")
+  description String  @db.Text
+  
+  // Source tracking (important!)
+  sourceType String  @map("source_type") // 'proposal', 'financial_item', 'manual_adjustment'
+  sourceId   String? @map("source_id")
+  
+  // Details
+  payeePayer      String? @map("payee_payer")
+  paymentMethod   String? @map("payment_method")
+  referenceNumber String? @map("reference_number")
+  
+  // Metadata
+  createdBy String   @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  organization Organization          @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  category     TransactionCategory?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  creator      Member                @relation(fields: [createdBy], references: [id])
+  proposals    Proposal[]
+  financialItems FinancialItem[]
+
+  @@index([orgId, transactionDate])
+  @@index([sourceType, sourceId])
+  @@map("transactions")
+}
+
+// ============================================
+// TRANSACTION CATEGORIES (v2.1)
+// ============================================
+
+model TransactionCategory {
+  id    String  @id @default(uuid())
+  orgId String? @map("org_id") // NULL = system default
+  
+  // Category
+  type        String  // 'revenue', 'expense'
+  name        String
+  description String? @db.Text
+  
+  // System vs custom
+  isSystemDefault Boolean @default(false) @map("is_system_default")
+  
+  // Organization
+  parentCategoryId String? @map("parent_category_id")
+  displayOrder     Int     @default(0) @map("display_order")
+  active           Boolean @default(true)
+  
+  // Metadata
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  organization Organization?  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@map("transaction_categories")
+}
+
+// ============================================
+// FINANCIAL ITEMS (v2.1 - OPTIONAL feature)
+// ============================================
+
+model FinancialItem {
+  id    String @id @default(uuid())
+  orgId String @map("org_id")
+  
+  // Type
+  type String // 'revenue', 'one_time_expense', 'recurring_expense'
+  
+  // Details
+  description String  @db.Text
+  amount      Decimal @db.Decimal(12, 2)
+  payeePayer  String? @map("payee_payer")
+  categoryId  String? @map("category_id")
+  
+  // Recurring (if applicable)
+  frequency    String?   @map("frequency") // 'monthly', 'quarterly', 'annual'
+  startDate    DateTime? @map("start_date")
+  endDate      DateTime? @map("end_date")
+  nextDueDate  DateTime? @map("next_due_date")
+  
+  // Approval workflow
+  status           String  @default("pending") // 'pending', 'approved', 'paid', 'rejected', 'cancelled'
+  requiresApproval Boolean @default(true) @map("requires_approval")
+  approvedBy       String? @map("approved_by")
+  approvedAt       DateTime? @map("approved_at")
+  
+  // Payment proof
+  paidAt          DateTime? @map("paid_at")
+  paymentMethod   String?   @map("payment_method")
+  paymentReference String?  @map("payment_reference")
+  receiptUrl      String?   @map("receipt_url")
+  
+  // Linking
+  transactionId String? @map("transaction_id")
+  
+  // Metadata
+  createdBy String   @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  creator      Member       @relation("FinancialItemCreator", fields: [createdBy], references: [id])
+  approver     Member?      @relation("FinancialItemApprover", fields: [approvedBy], references: [id])
+  transaction  Transaction? @relation(fields: [transactionId], references: [id])
+
+  @@index([orgId, status])
+  @@index([nextDueDate])
+  @@map("financial_items")
+}
+
+// ============================================
+// AI AGENT ACTIONS
+// ============================================
+
+model AiAgentAction {
+  id    String @id @default(uuid())
+  orgId String @map("org_id")
+  
+  // AI Agent info
+  agentType String @map("agent_type") // 'proposal_helper', 'value_checker', 'budget_analyzer'
+  action    String // What action was performed
+  
+  // Context
+  proposalId String? @map("proposal_id")
+  memberId   String  @map("member_id")
+  
+  // Request/Response
+  input  Json
+  output Json
+  
+  // Tokens & Cost
+  tokensUsed Int     @map("tokens_used")
+  cost       Decimal @db.Decimal(10, 4)
+  
+  // Metadata
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  proposal     Proposal?    @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  member       Member       @relation(fields: [memberId], references: [id])
+
+  @@map("ai_agent_actions")
+}
+
+// ============================================
+// AUDIT LOGS
+// ============================================
+
+model AuditLog {
+  id    String @id @default(uuid())
+  orgId String @map("org_id")
+  
+  // Action
+  action      String // 'create', 'update', 'delete', 'state_change'
+  entityType  String @map("entity_type") // 'proposal', 'member', 'vote', etc.
+  entityId    String @map("entity_id")
+  
+  // Actor
+  actorId   String? @map("actor_id")
+  actorType String  @map("actor_type") // 'member', 'system', 'cron'
+  
+  // Changes
+  changes Json?
+  
+  // IP & Context
+  ipAddress String? @map("ip_address")
+  userAgent String? @map("user_agent")
+  
+  // Metadata
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  actor        Member?      @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([orgId, entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ============================================
+// ENDORSEMENTS (Qualitative Peer Validation)
+// ============================================
+
+model Endorsement {
+  id          String   @id @default(uuid())
+  
+  // Who endorsed whom for what skill
+  endorserId  String   @map("endorser_id")
+  endorsedId  String   @map("endorsed_id")
+  skillName   String   @map("skill_name")
+  
+  // The human part (qualitative, not scores)
+  comment     String?  @db.Text  // Optional personal note
+  context     String?  @db.Text  // "We worked together on Garden Project"
+  
+  // Verification - must have worked together
+  orgId       String?  @map("org_id") // Which org they worked together in
+  
+  // Metadata
+  createdAt   DateTime @default(now()) @map("created_at")
+  
+  // Relations
+  endorser     User         @relation("GivenEndorsements", fields: [endorserId], references: [id], onDelete: Cascade)
+  endorsed     User         @relation("ReceivedEndorsements", fields: [endorsedId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [orgId], references: [id], onDelete: SetNull)
+  
+  // Prevent duplicate endorsements (one per person per skill)
+  @@unique([endorserId, endorsedId, skillName])
+  @@index([endorsedId]) // Fast lookup of someone's endorsements
+  @@map("endorsements")
+}
+
+model CaptainsLog {
+  id          String   @id @default(uuid())
+  orgId       String   @map("org_id")
+  
+  // Who performed the action
+  actorId     String   @map("actor_id")
+  actorType   String   @default("member") @map("actor_type") // member, system, api - future proof
+  
+  // What action was performed
+  action      String   // created, updated, deleted, approved, voted, completed, etc
+  actionPast  String   @map("action_past") // "created", "updated", "deleted" - for display
+  
+  // What was acted upon
+  entityType  String   @map("entity_type")  // proposal, project, task, member, organization
+  entityId    String?  @map("entity_id")    // ID of the entity
+  entityName  String?  @map("entity_name")  // "Email System" - human readable
+  
+  // Flexible context (THIS IS THE MAGIC - stores ANYTHING without schema changes)
+  context     Json?    // Can store any data structure:
+                       // { "changes": { "status": { "from": "draft", "to": "active" } } }
+                       // { "vote": "approve", "comment": "Great idea!" }
+                       // { "priority": "urgent", "assignedTo": "Alice" }
+                       // Add ANY new fields here without altering schema!
+  
+  // When it happened
+  timestamp   DateTime @default(now())
+  
+  // Relations
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  actor        Member       @relation("CaptainsLogActor", fields: [actorId], references: [id])
+  
+  @@map("captains_log")
+  @@index([orgId, timestamp])
+  @@index([entityType, entityId])
+  @@index([actorId])
+}
