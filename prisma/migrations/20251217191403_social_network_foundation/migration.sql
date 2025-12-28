@@ -2,7 +2,7 @@
   Warnings:
 
   - You are about to drop the column `email` on the `members` table. All the data in the column will be lost.
-  - A unique constraint covering the columns `[org_id,user_id]` on the table `members` will be added. If there are existing duplicate values, this will fail.
+  - A unique constraint covering the columns `[band_Id,user_id]` on the table `members` will be added. If there are existing duplicate values, this will fail.
   - Made the column `user_id` on table `members` required. This step will fail if there are existing NULL values in that column.
 
 */
@@ -10,7 +10,7 @@
 ALTER TABLE "members" DROP CONSTRAINT "members_user_id_fkey";
 
 -- DropIndex
-DROP INDEX "members_org_id_email_key";
+DROP INDEX "members_band_Id_email_key";
 
 -- AlterTable
 ALTER TABLE "members" DROP COLUMN "email",
@@ -21,7 +21,7 @@ ADD COLUMN     "votes_cast" INTEGER NOT NULL DEFAULT 0,
 ALTER COLUMN "user_id" SET NOT NULL;
 
 -- AlterTable
-ALTER TABLE "organizations" ADD COLUMN     "is_public" BOOLEAN NOT NULL DEFAULT false,
+ALTER TABLE "bands" ADD COLUMN     "is_public" BOOLEAN NOT NULL DEFAULT false,
 ADD COLUMN     "latitude" DOUBLE PRECISION,
 ADD COLUMN     "longitude" DOUBLE PRECISION,
 ADD COLUMN     "member_count" INTEGER NOT NULL DEFAULT 0,
@@ -52,7 +52,7 @@ CREATE TABLE "endorsements" (
     "skill_name" TEXT NOT NULL,
     "comment" TEXT,
     "context" TEXT,
-    "org_id" TEXT,
+    "band_Id" TEXT,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "endorsements_pkey" PRIMARY KEY ("id")
@@ -65,7 +65,7 @@ CREATE INDEX "endorsements_endorsed_id_idx" ON "endorsements"("endorsed_id");
 CREATE UNIQUE INDEX "endorsements_endorser_id_endorsed_id_skill_name_key" ON "endorsements"("endorser_id", "endorsed_id", "skill_name");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "members_org_id_user_id_key" ON "members"("org_id", "user_id");
+CREATE UNIQUE INDEX "members_band_Id_user_id_key" ON "members"("band_Id", "user_id");
 
 -- AddForeignKey
 ALTER TABLE "members" ADD CONSTRAINT "members_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -77,4 +77,4 @@ ALTER TABLE "endorsements" ADD CONSTRAINT "endorsements_endorser_id_fkey" FOREIG
 ALTER TABLE "endorsements" ADD CONSTRAINT "endorsements_endorsed_id_fkey" FOREIGN KEY ("endorsed_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "endorsements" ADD CONSTRAINT "endorsements_org_id_fkey" FOREIGN KEY ("org_id") REFERENCES "organizations"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "endorsements" ADD CONSTRAINT "endorsements_band_Id_fkey" FOREIGN KEY ("band_Id") REFERENCES "bands"("id") ON DELETE SET NULL ON UPDATE CASCADE;

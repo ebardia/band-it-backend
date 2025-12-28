@@ -14,7 +14,7 @@ ADD COLUMN     "project_id" TEXT;
 -- CreateTable
 CREATE TABLE "projects" (
     "id" TEXT NOT NULL,
-    "org_id" TEXT NOT NULL,
+    "band_Id" TEXT NOT NULL,
     "proposal_id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "description" TEXT,
@@ -32,7 +32,7 @@ CREATE TABLE "projects" (
 );
 
 -- AddForeignKey
-ALTER TABLE "projects" ADD CONSTRAINT "projects_org_id_fkey" FOREIGN KEY ("org_id") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "projects" ADD CONSTRAINT "projects_band_Id_fkey" FOREIGN KEY ("band_Id") REFERENCES "bands"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "projects" ADD CONSTRAINT "projects_proposal_id_fkey" FOREIGN KEY ("proposal_id") REFERENCES "proposals"("id") ON DELETE CASCADE ON UPDATE CASCADE;

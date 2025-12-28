@@ -14,7 +14,7 @@ CREATE TABLE "users" (
 );
 
 -- CreateTable
-CREATE TABLE "organizations" (
+CREATE TABLE "bands" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "slug" TEXT NOT NULL,
@@ -32,13 +32,13 @@ CREATE TABLE "organizations" (
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "organizations_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "bands_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "members" (
     "id" TEXT NOT NULL,
-    "org_id" TEXT NOT NULL,
+    "band_Id" TEXT NOT NULL,
     "user_id" TEXT,
     "email" TEXT NOT NULL,
     "role" TEXT NOT NULL,
@@ -57,7 +57,7 @@ CREATE TABLE "members" (
 -- CreateTable
 CREATE TABLE "proposals" (
     "id" TEXT NOT NULL,
-    "org_id" TEXT NOT NULL,
+    "band_Id" TEXT NOT NULL,
     "title" TEXT NOT NULL,
     "objective" TEXT NOT NULL,
     "description" TEXT NOT NULL,
@@ -119,7 +119,7 @@ CREATE TABLE "votes" (
 -- CreateTable
 CREATE TABLE "tasks" (
     "id" TEXT NOT NULL,
-    "org_id" TEXT NOT NULL,
+    "band_Id" TEXT NOT NULL,
     "proposal_id" TEXT,
     "title" TEXT NOT NULL,
     "description" TEXT,
@@ -140,7 +140,7 @@ CREATE TABLE "tasks" (
 -- CreateTable
 CREATE TABLE "values" (
     "id" TEXT NOT NULL,
-    "org_id" TEXT NOT NULL,
+    "band_Id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "description" TEXT NOT NULL,
     "keywords" TEXT[],
@@ -155,7 +155,7 @@ CREATE TABLE "values" (
 -- CreateTable
 CREATE TABLE "transactions" (
     "id" TEXT NOT NULL,
-    "org_id" TEXT NOT NULL,
+    "band_Id" TEXT NOT NULL,
     "transaction_date" TIMESTAMP(3) NOT NULL,
     "amount" DECIMAL(12,2) NOT NULL,
     "type" TEXT NOT NULL,
@@ -175,7 +175,7 @@ CREATE TABLE "transactions" (
 -- CreateTable
 CREATE TABLE "transaction_categories" (
     "id" TEXT NOT NULL,
-    "org_id" TEXT,
+    "band_Id" TEXT,
     "type" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "description" TEXT,
@@ -191,7 +191,7 @@ CREATE TABLE "transaction_categories" (
 -- CreateTable
 CREATE TABLE "financial_items" (
     "id" TEXT NOT NULL,
-    "org_id" TEXT NOT NULL,
+    "band_Id" TEXT NOT NULL,
     "type" TEXT NOT NULL,
     "description" TEXT NOT NULL,
     "amount" DECIMAL(12,2) NOT NULL,
@@ -219,7 +219,7 @@ CREATE TABLE "financial_items" (
 -- CreateTable
 CREATE TABLE "ai_agent_actions" (
     "id" TEXT NOT NULL,
-    "org_id" TEXT NOT NULL,
+    "band_Id" TEXT NOT NULL,
     "agent_type" TEXT NOT NULL,
     "action" TEXT NOT NULL,
     "proposal_id" TEXT,
@@ -236,7 +236,7 @@ CREATE TABLE "ai_agent_actions" (
 -- CreateTable
 CREATE TABLE "audit_logs" (
     "id" TEXT NOT NULL,
-    "org_id" TEXT NOT NULL,
+    "band_Id" TEXT NOT NULL,
     "action" TEXT NOT NULL,
     "entity_type" TEXT NOT NULL,
     "entity_id" TEXT NOT NULL,
@@ -254,10 +254,10 @@ CREATE TABLE "audit_logs" (
 CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "organizations_slug_key" ON "organizations"("slug");
+CREATE UNIQUE INDEX "bands_slug_key" ON "bands"("slug");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "members_org_id_email_key" ON "members"("org_id", "email");
+CREATE UNIQUE INDEX "members_band_Id_email_key" ON "members"("band_Id", "email");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "proposal_versions_proposal_id_version_number_key" ON "proposal_versions"("proposal_id", "version_number");
@@ -266,31 +266,31 @@ CREATE UNIQUE INDEX "proposal_versions_proposal_id_version_number_key" ON "propo
 CREATE UNIQUE INDEX "votes_proposal_id_member_id_key" ON "votes"("proposal_id", "member_id");
 
 -- CreateIndex
-CREATE INDEX "transactions_org_id_transaction_date_idx" ON "transactions"("org_id", "transaction_date");
+CREATE INDEX "transactions_band_Id_transaction_date_idx" ON "transactions"("band_Id", "transaction_date");
 
 -- CreateIndex
 CREATE INDEX "transactions_source_type_source_id_idx" ON "transactions"("source_type", "source_id");
 
 -- CreateIndex
-CREATE INDEX "financial_items_org_id_status_idx" ON "financial_items"("org_id", "status");
+CREATE INDEX "financial_items_band_Id_status_idx" ON "financial_items"("band_Id", "status");
 
 -- CreateIndex
 CREATE INDEX "financial_items_next_due_date_idx" ON "financial_items"("next_due_date");
 
 -- CreateIndex
-CREATE INDEX "audit_logs_org_id_entity_type_entity_id_idx" ON "audit_logs"("org_id", "entity_type", "entity_id");
+CREATE INDEX "audit_logs_band_Id_entity_type_entity_id_idx" ON "audit_logs"("band_Id", "entity_type", "entity_id");
 
 -- CreateIndex
 CREATE INDEX "audit_logs_created_at_idx" ON "audit_logs"("created_at");
 
 -- AddForeignKey
-ALTER TABLE "members" ADD CONSTRAINT "members_org_id_fkey" FOREIGN KEY ("org_id") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "members" ADD CONSTRAINT "members_band_Id_fkey" FOREIGN KEY ("band_Id") REFERENCES "bands"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "members" ADD CONSTRAINT "members_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "proposals" ADD CONSTRAINT "proposals_org_id_fkey" FOREIGN KEY ("org_id") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "proposals" ADD CONSTRAINT "proposals_band_Id_fkey" FOREIGN KEY ("band_Id") REFERENCES "bands"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "proposals" ADD CONSTRAINT "proposals_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "members"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -311,7 +311,7 @@ ALTER TABLE "votes" ADD CONSTRAINT "votes_proposal_id_fkey" FOREIGN KEY ("propos
 ALTER TABLE "votes" ADD CONSTRAINT "votes_member_id_fkey" FOREIGN KEY ("member_id") REFERENCES "members"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "tasks" ADD CONSTRAINT "tasks_org_id_fkey" FOREIGN KEY ("org_id") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "tasks" ADD CONSTRAINT "tasks_band_Id_fkey" FOREIGN KEY ("band_Id") REFERENCES "bands"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "tasks" ADD CONSTRAINT "tasks_proposal_id_fkey" FOREIGN KEY ("proposal_id") REFERENCES "proposals"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -323,10 +323,10 @@ ALTER TABLE "tasks" ADD CONSTRAINT "tasks_created_by_fkey" FOREIGN KEY ("created
 ALTER TABLE "tasks" ADD CONSTRAINT "tasks_assigned_to_fkey" FOREIGN KEY ("assigned_to") REFERENCES "members"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "values" ADD CONSTRAINT "values_org_id_fkey" FOREIGN KEY ("org_id") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "values" ADD CONSTRAINT "values_band_Id_fkey" FOREIGN KEY ("band_Id") REFERENCES "bands"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "transactions" ADD CONSTRAINT "transactions_org_id_fkey" FOREIGN KEY ("org_id") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "transactions" ADD CONSTRAINT "transactions_band_Id_fkey" FOREIGN KEY ("band_Id") REFERENCES "bands"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "transactions" ADD CONSTRAINT "transactions_category_id_fkey" FOREIGN KEY ("category_id") REFERENCES "transaction_categories"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -335,10 +335,10 @@ ALTER TABLE "transactions" ADD CONSTRAINT "transactions_category_id_fkey" FOREIG
 ALTER TABLE "transactions" ADD CONSTRAINT "transactions_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "members"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "transaction_categories" ADD CONSTRAINT "transaction_categories_org_id_fkey" FOREIGN KEY ("org_id") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "transaction_categories" ADD CONSTRAINT "transaction_categories_band_Id_fkey" FOREIGN KEY ("band_Id") REFERENCES "bands"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "financial_items" ADD CONSTRAINT "financial_items_org_id_fkey" FOREIGN KEY ("org_id") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "financial_items" ADD CONSTRAINT "financial_items_band_Id_fkey" FOREIGN KEY ("band_Id") REFERENCES "bands"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "financial_items" ADD CONSTRAINT "financial_items_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "members"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -350,7 +350,7 @@ ALTER TABLE "financial_items" ADD CONSTRAINT "financial_items_approved_by_fkey" 
 ALTER TABLE "financial_items" ADD CONSTRAINT "financial_items_transaction_id_fkey" FOREIGN KEY ("transaction_id") REFERENCES "transactions"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "ai_agent_actions" ADD CONSTRAINT "ai_agent_actions_org_id_fkey" FOREIGN KEY ("org_id") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "ai_agent_actions" ADD CONSTRAINT "ai_agent_actions_band_Id_fkey" FOREIGN KEY ("band_Id") REFERENCES "bands"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "ai_agent_actions" ADD CONSTRAINT "ai_agent_actions_proposal_id_fkey" FOREIGN KEY ("proposal_id") REFERENCES "proposals"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -359,7 +359,7 @@ ALTER TABLE "ai_agent_actions" ADD CONSTRAINT "ai_agent_actions_proposal_id_fkey
 ALTER TABLE "ai_agent_actions" ADD CONSTRAINT "ai_agent_actions_member_id_fkey" FOREIGN KEY ("member_id") REFERENCES "members"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_org_id_fkey" FOREIGN KEY ("org_id") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_band_Id_fkey" FOREIGN KEY ("band_Id") REFERENCES "bands"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_actor_id_fkey" FOREIGN KEY ("actor_id") REFERENCES "members"("id") ON DELETE SET NULL ON UPDATE CASCADE;

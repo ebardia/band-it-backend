@@ -1,9 +1,10 @@
 import express from 'express';
 import {
   createOrganization,
-  getUserOrganizations,
+  getUserbands,
   getOrganization,
   inviteMember,
+  updateBandProfile
 } from '../controllers/orgController';
 import { requireAuth, requireOrgMember } from '../middleware/auth';
 
@@ -12,16 +13,18 @@ const router = express.Router();
 // All routes require authentication
 router.use(requireAuth);
 
-// Create organization
+// Create Band
 router.post('/', createOrganization);
 
-// Get user's organizations
-router.get('/my-organizations', getUserOrganizations);
+// Get user's bands
+router.get('/my-bands', getUserbands);
 
-// Get organization details
-router.get('/:org_id', getOrganization);
+router.put('/:id/profile', updateBandProfile);
+
+// Get Band details
+router.get('/:id', getOrganization);
 
 // Invite member (requires founder/steward)
-router.post('/:org_id/invite', requireOrgMember, inviteMember);
+router.post('/:id/invite', requireOrgMember, inviteMember);
 
 export default router;

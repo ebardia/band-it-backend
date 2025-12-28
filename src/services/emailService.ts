@@ -54,7 +54,7 @@ class EmailService {
     const html = `
       <h1>Welcome to BAND IT, ${firstName}!</h1>
       <p>Your account has been created successfully.</p>
-      <p>You can now create or join organizations and start collaborating.</p>
+      <p>You can now create or join bands and start collaborating.</p>
       <p>- The BAND IT Team</p>
     `;
     await this.sendEmail(email, subject, html);

@@ -40,7 +40,7 @@ model User {
   
   // Profile Visibility - Privacy Controls
   profileVisibility String @default("public") @map("profile_visibility")
-  // 'public' (anyone), 'network' (only members of my orgs), 'private' (only me)
+  // 'public' (anyone), 'network' (only members of my bands), 'private' (only me)
   
   // Social Links (Optional)
   socialLinks  Json?   @default("{}") @map("social_links")
@@ -67,10 +67,10 @@ model User {
 }
 
 // ============================================
-// ORGANIZATIONS
+// bandS
 // ============================================
 
-model Organization {
+model band {
   id          String   @id @default(uuid())
   name        String
   slug        String   @unique
@@ -92,10 +92,35 @@ model Organization {
   tags             Json?   @default("[]") // ["gardening", "sustainability", "community"]
   memberCount      Int     @default(0) @map("member_count") // Auto-updated
   
+  // Enhanced Profile (NEW)
+  heroImageUrl      String?  @map("hero_image_url")
+  tagline           String?  @map("tagline")
+  fullDescription   String?  @map("full_description") @db.Text
+  
+  // Values & Principles (NEW)
+  coreValues            Json?    @map("core_values")
+  decisionGuidelines    String?  @map("decision_guidelines") @db.Text
+  inclusionStatement    String?  @map("inclusion_statement") @db.Text
+  environmentalCommitments String? @map("environmental_commitments") @db.Text
+  
+  // Membership (NEW)
+  membershipPolicy          String?  @map("membership_policy") @db.Text
+  rolesDescription          String?  @map("roles_description") @db.Text
+  participationExpectations String?  @map("participation_expectations") @db.Text
+  communicationChannels     Json?    @map("communication_channels")
+  
   // Governance config
   quorumPercentage    Int     @default(50) @map("quorum_percentage")
   approvalThreshold   Int     @default(60) @map("approval_threshold")
   votingPeriodHours   Int     @default(72) @map("voting_period_hours")
+  
+  // Governance Details (NEW)
+  decisionModel          String?  @map("decision_model")
+  approvalThresholds     Json?    @map("approval_thresholds")
+  
+  // Auto-generated Impact Summary (NEW)
+  impactSummary      String?   @map("impact_summary") @db.Text
+  lastSummaryUpdate  DateTime? @map("last_summary_update")
   
   // Treasury
   treasuryBalance     Decimal @default(0) @map("treasury_balance") @db.Decimal(12, 2)
@@ -119,10 +144,63 @@ model Organization {
   aiAgentActions  AiAgentAction[]
   auditLogs       AuditLog[]
   endorsements    Endorsement[]
-  projects          Project[]
-  captainsLog       CaptainsLog[] 
+  projects        Project[]
+  captainsLog     CaptainsLog[]
+  images          BandImage[]
+  documents       BandDocument[]
 
-  @@map("organizations")
+  @@map("bands")
+}
+
+// ============================================
+// BAND IMAGES (NEW)
+// ============================================
+
+model BandImage {
+  id          String   @id @default(uuid())
+  bandId      String   @map("band_id")
+  
+  title       String?
+  description String?
+  imageUrl    String   @map("image_url")
+  order       Int      @default(0)
+  
+  uploadedBy  String   @map("uploaded_by")
+  
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  band     band   @relation(fields: [bandId], references: [id], onDelete: Cascade)
+  uploader Member @relation(fields: [uploadedBy], references: [id])
+  
+  @@map("band_images")
+}
+
+// ============================================
+// BAND DOCUMENTS (NEW)
+// ============================================
+
+model BandDocument {
+  id          String   @id @default(uuid())
+  bandId      String   @map("band_id")
+  
+  title       String
+  description String?
+  fileUrl     String   @map("file_url")
+  fileType    String   @map("file_type")  // pdf, docx, etc
+  fileSize    Int      @map("file_size")  // bytes
+  
+  uploadedBy  String   @map("uploaded_by")
+  
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  band     band   @relation(fields: [bandId], references: [id], onDelete: Cascade)
+  uploader Member @relation(fields: [uploadedBy], references: [id])
+  
+  @@map("band_documents")
 }
 
 // ============================================
@@ -130,7 +208,7 @@ model Organization {
 // ============================================
 model Member {
   id     String @id @default(uuid())
-  orgId  String @map("org_id")
+  bandId  String @map("band_id")
   userId String @map("user_id") // NOW REQUIRED (not optional)
   
   // Membership-specific (NOT identity - that's on User)
@@ -145,12 +223,12 @@ model Member {
   // Founder special handling
   founderExpiresAt DateTime? @map("founder_expires_at")
   
-  // Org-specific contributions (factual counts - can be displayed transparently)
+  // band-specific contributions (factual counts - can be displayed transparently)
   tasksCompleted    Int @default(0) @map("tasks_completed")
   proposalCount  Int @default(0) @map("proposals_count")
   votescast         Int @default(0) @map("votes_cast")
   
-  // Custom role/title in this org (optional)
+  // Custom role/title in this band (optional)
   customTitle String? @map("custom_title") // "Head Gardener", "Event Coordinator"
   
   // Metadata
@@ -159,7 +237,7 @@ model Member {
   updatedAt DateTime  @updatedAt @map("updated_at")
 
   // Relations
-  organization    Organization      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  band    band      @relation(fields: [bandId], references: [id], onDelete: Cascade)
   user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   proposalsCreated Proposal[]       @relation("ProposalCreator")
   proposalsReviewed Proposal[]      @relation("ProposalReviewer")
@@ -174,9 +252,10 @@ model Member {
   projectsCreated   Project[]   @relation("ProjectCreator")
   proposalVersions ProposalVersion[] @relation("ProposalVersionCreator") 
   captainsLogEntries CaptainsLog[] @relation("CaptainsLogActor")
+  uploadedImages    BandImage[]
+  uploadedDocuments BandDocument[]
 
-
-  @@unique([orgId, userId]) // One membership per user per org
+  @@unique([bandId, userId]) // One membership per user per band
   @@map("members")
 }
 
@@ -186,7 +265,7 @@ model Member {
 
 model Proposal {
   id    String @id @default(uuid())
-  orgId String @map("org_id")
+  bandId String @map("band_id")
   
   // Content
   title            String
@@ -231,7 +310,7 @@ model Proposal {
   updatedAt DateTime  @updatedAt @map("updated_at")
 
   // Relations
-  organization      Organization       @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  band      band       @relation(fields: [bandId], references: [id], onDelete: Cascade)
   creator           Member             @relation("ProposalCreator", fields: [createdBy], references: [id])
   reviewer          Member?            @relation("ProposalReviewer", fields: [reviewedBy], references: [id])
   transaction       Transaction?       @relation(fields: [transactionId], references: [id])
@@ -264,12 +343,11 @@ model ProposalVersion {
   versionNumber Int      @map("version_number")
   changeReason  String?  @db.Text @map("change_reason")
   createdAt     DateTime @default(now()) @map("created_at")
-  createdBy     String   @map("created_by")  // ADD THIS LINE
+  createdBy     String   @map("created_by")
 
   // Relations
   proposal Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
   creator  Member   @relation("ProposalVersionCreator", fields: [createdBy], references: [id])
-
 
   @@unique([proposalId, versionNumber])
   @@map("proposal_versions")
@@ -302,7 +380,7 @@ model Vote {
 
 model Project {
   id         String @id @default(uuid())
-  orgId      String @map("org_id")
+  bandId      String @map("band_id")
   proposalId String @map("proposal_id")
   
   // Project info
@@ -325,7 +403,7 @@ model Project {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  band band @relation(fields: [bandId], references: [id], onDelete: Cascade)
   proposal     Proposal     @relation(fields: [proposalId], references: [id], onDelete: Cascade)
   creator      Member       @relation("ProjectCreator", fields: [createdBy], references: [id])
   tasks        Task[]
@@ -339,7 +417,7 @@ model Project {
 
 model Task {
   id        String  @id @default(uuid())
-  orgId     String  @map("org_id")
+  bandId     String  @map("band_id")
   projectId String? @map("project_id")  // CHANGED: now links to project
   
   // Task info
@@ -363,7 +441,7 @@ model Task {
   completedAt DateTime? @map("completed_at")
 
   // Relations
-  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  band band @relation(fields: [bandId], references: [id], onDelete: Cascade)
   project      Project?     @relation(fields: [projectId], references: [id], onDelete: Cascade)  // CHANGED
   creator      Member       @relation("TaskCreator", fields: [createdBy], references: [id])
   assignee     Member?      @relation("TaskAssignee", fields: [assignedTo], references: [id])
@@ -377,7 +455,7 @@ model Task {
 
 model Value {
   id    String @id @default(uuid())
-  orgId String @map("org_id")
+  bandId String @map("band_id")
   
   // Value content
   name        String
@@ -393,18 +471,18 @@ model Value {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  band band @relation(fields: [bandId], references: [id], onDelete: Cascade)
 
   @@map("values")
 }
 
 // ============================================
-// TRANSACTIONS (v2.1 - Used by ALL orgs)
+// TRANSACTIONS (v2.1 - Used by ALL bands)
 // ============================================
 
 model Transaction {
   id    String @id @default(uuid())
-  orgId String @map("org_id")
+  bandId String @map("band_id")
   
   // Transaction details
   transactionDate DateTime @map("transaction_date")
@@ -429,13 +507,13 @@ model Transaction {
   createdAt DateTime @default(now()) @map("created_at")
 
   // Relations
-  organization Organization          @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  band band          @relation(fields: [bandId], references: [id], onDelete: Cascade)
   category     TransactionCategory?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   creator      Member                @relation(fields: [createdBy], references: [id])
   proposals    Proposal[]
   financialItems FinancialItem[]
 
-  @@index([orgId, transactionDate])
+  @@index([bandId, transactionDate])
   @@index([sourceType, sourceId])
   @@map("transactions")
 }
@@ -446,7 +524,7 @@ model Transaction {
 
 model TransactionCategory {
   id    String  @id @default(uuid())
-  orgId String? @map("org_id") // NULL = system default
+  bandId String? @map("band_id") // NULL = system default
   
   // Category
   type        String  // 'revenue', 'expense'
@@ -456,7 +534,7 @@ model TransactionCategory {
   // System vs custom
   isSystemDefault Boolean @default(false) @map("is_system_default")
   
-  // Organization
+  // band
   parentCategoryId String? @map("parent_category_id")
   displayOrder     Int     @default(0) @map("display_order")
   active           Boolean @default(true)
@@ -465,7 +543,7 @@ model TransactionCategory {
   createdAt DateTime @default(now()) @map("created_at")
 
   // Relations
-  organization Organization?  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  band band?  @relation(fields: [bandId], references: [id], onDelete: Cascade)
   transactions Transaction[]
 
   @@map("transaction_categories")
@@ -477,7 +555,7 @@ model TransactionCategory {
 
 model FinancialItem {
   id    String @id @default(uuid())
-  orgId String @map("org_id")
+  bandId String @map("band_id")
   
   // Type
   type String // 'revenue', 'one_time_expense', 'recurring_expense'
@@ -514,12 +592,12 @@ model FinancialItem {
   createdAt DateTime @default(now()) @map("created_at")
 
   // Relations
-  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  band band @relation(fields: [bandId], references: [id], onDelete: Cascade)
   creator      Member       @relation("FinancialItemCreator", fields: [createdBy], references: [id])
   approver     Member?      @relation("FinancialItemApprover", fields: [approvedBy], references: [id])
   transaction  Transaction? @relation(fields: [transactionId], references: [id])
 
-  @@index([orgId, status])
+  @@index([bandId, status])
   @@index([nextDueDate])
   @@map("financial_items")
 }
@@ -530,7 +608,7 @@ model FinancialItem {
 
 model AiAgentAction {
   id    String @id @default(uuid())
-  orgId String @map("org_id")
+  bandId String @map("band_id")
   
   // AI Agent info
   agentType String @map("agent_type") // 'proposal_helper', 'value_checker', 'budget_analyzer'
@@ -548,11 +626,16 @@ model AiAgentAction {
   tokensUsed Int     @map("tokens_used")
   cost       Decimal @db.Decimal(10, 4)
   
+  // Environmental Impact (NEW)
+  energyKwh   Decimal? @map("energy_kwh") @db.Decimal(10, 6)
+  waterLiters Decimal? @map("water_liters") @db.Decimal(10, 4)
+  carbonKg    Decimal? @map("carbon_kg") @db.Decimal(10, 6)
+  
   // Metadata
   createdAt DateTime @default(now()) @map("created_at")
 
   // Relations
-  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  band band @relation(fields: [bandId], references: [id], onDelete: Cascade)
   proposal     Proposal?    @relation(fields: [proposalId], references: [id], onDelete: Cascade)
   member       Member       @relation(fields: [memberId], references: [id])
 
@@ -565,7 +648,7 @@ model AiAgentAction {
 
 model AuditLog {
   id    String @id @default(uuid())
-  orgId String @map("org_id")
+  bandId String @map("band_id")
   
   // Action
   action      String // 'create', 'update', 'delete', 'state_change'
@@ -587,10 +670,10 @@ model AuditLog {
   createdAt DateTime @default(now()) @map("created_at")
 
   // Relations
-  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  band band @relation(fields: [bandId], references: [id], onDelete: Cascade)
   actor        Member?      @relation(fields: [actorId], references: [id], onDelete: SetNull)
 
-  @@index([orgId, entityType, entityId])
+  @@index([bandId, entityType, entityId])
   @@index([createdAt])
   @@map("audit_logs")
 }
@@ -612,7 +695,7 @@ model Endorsement {
   context     String?  @db.Text  // "We worked together on Garden Project"
   
   // Verification - must have worked together
-  orgId       String?  @map("org_id") // Which org they worked together in
+  bandId       String?  @map("band_id") // Which band they worked together in
   
   // Metadata
   createdAt   DateTime @default(now()) @map("created_at")
@@ -620,7 +703,7 @@ model Endorsement {
   // Relations
   endorser     User         @relation("GivenEndorsements", fields: [endorserId], references: [id], onDelete: Cascade)
   endorsed     User         @relation("ReceivedEndorsements", fields: [endorsedId], references: [id], onDelete: Cascade)
-  organization Organization? @relation(fields: [orgId], references: [id], onDelete: SetNull)
+  band band? @relation(fields: [bandId], references: [id], onDelete: SetNull)
   
   // Prevent duplicate endorsements (one per person per skill)
   @@unique([endorserId, endorsedId, skillName])
@@ -630,7 +713,7 @@ model Endorsement {
 
 model CaptainsLog {
   id          String   @id @default(uuid())
-  orgId       String   @map("org_id")
+  bandId       String   @map("band_id")
   
   // Who performed the action
   actorId     String   @map("actor_id")
@@ -641,7 +724,7 @@ model CaptainsLog {
   actionPast  String   @map("action_past") // "created", "updated", "deleted" - for display
   
   // What was acted upon
-  entityType  String   @map("entity_type")  // proposal, project, task, member, organization
+  entityType  String   @map("entity_type")  // proposal, project, task, member, band
   entityId    String?  @map("entity_id")    // ID of the entity
   entityName  String?  @map("entity_name")  // "Email System" - human readable
   
@@ -656,11 +739,11 @@ model CaptainsLog {
   timestamp   DateTime @default(now())
   
   // Relations
-  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  band band @relation(fields: [bandId], references: [id], onDelete: Cascade)
   actor        Member       @relation("CaptainsLogActor", fields: [actorId], references: [id])
   
   @@map("captains_log")
-  @@index([orgId, timestamp])
+  @@index([bandId, timestamp])
   @@index([entityType, entityId])
   @@index([actorId])
 }

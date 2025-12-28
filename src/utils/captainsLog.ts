@@ -1,7 +1,7 @@
 import prisma from '../config/database';
 
 interface LogEntry {
-  orgId: string;
+  bandId: string;
   actorId: string;
   action: string;
   actionPast: string;
@@ -20,7 +20,7 @@ export const logActivity = async (entry: LogEntry) => {
   try {
     await prisma.captainsLog.create({
       data: {
-        orgId: entry.orgId,
+        bandId: entry.bandId,
         actorId: entry.actorId,
         actorType: entry.actorType || 'member',
         action: entry.action,
@@ -40,9 +40,9 @@ export const logActivity = async (entry: LogEntry) => {
 // Helper functions for common actions
 export const log = {
   // Proposals
-  proposalCreated: (orgId: string, actorId: string, proposalId: string, proposalTitle: string) =>
+  proposalCreated: (bandId: string, actorId: string, proposalId: string, proposalTitle: string) =>
     logActivity({
-      orgId,
+      bandId,
       actorId,
       action: 'create',
       actionPast: 'created',
@@ -51,9 +51,9 @@ export const log = {
       entityName: proposalTitle,
     }),
 
-  proposalSubmitted: (orgId: string, actorId: string, proposalId: string, proposalTitle: string) =>
+  proposalSubmitted: (bandId: string, actorId: string, proposalId: string, proposalTitle: string) =>
     logActivity({
-      orgId,
+      bandId,
       actorId,
       action: 'submit',
       actionPast: 'submitted',
@@ -63,7 +63,7 @@ export const log = {
     }),
 
   proposalReviewed: (
-    orgId: string,
+    bandId: string,
     actorId: string,
     proposalId: string,
     proposalTitle: string,
@@ -71,7 +71,7 @@ export const log = {
     feedback?: string
   ) =>
     logActivity({
-      orgId,
+      bandId,
       actorId,
       action: approved ? 'approve' : 'request_changes',
       actionPast: approved ? 'approved' : 'requested changes on',
@@ -82,7 +82,7 @@ export const log = {
     }),
 
   proposalVoted: (
-    orgId: string,
+    bandId: string,
     actorId: string,
     proposalId: string,
     proposalTitle: string,
@@ -90,7 +90,7 @@ export const log = {
     comment?: string
   ) =>
     logActivity({
-      orgId,
+      bandId,
       actorId,
       action: 'vote',
       actionPast: `voted '${vote}' on`,
@@ -101,14 +101,14 @@ export const log = {
     }),
 
   proposalFinalized: (
-    orgId: string,
+    bandId: string,
     actorId: string,
     proposalId: string,
     proposalTitle: string,
     approved: boolean
   ) =>
     logActivity({
-      orgId,
+      bandId,
       actorId,
       action: 'finalize',
       actionPast: approved ? 'finalized as approved' : 'finalized as rejected',
@@ -120,14 +120,14 @@ export const log = {
 
   // Projects
   projectCreated: (
-    orgId: string,
+    bandId: string,
     actorId: string,
     projectId: string,
     projectName: string,
     proposalTitle?: string
   ) =>
     logActivity({
-      orgId,
+      bandId,
       actorId,
       action: 'create',
       actionPast: 'created',
@@ -138,14 +138,14 @@ export const log = {
     }),
 
   projectUpdated: (
-    orgId: string,
+    bandId: string,
     actorId: string,
     projectId: string,
     projectName: string,
     changes: any
   ) =>
     logActivity({
-      orgId,
+      bandId,
       actorId,
       action: 'update',
       actionPast: 'updated',
@@ -155,9 +155,9 @@ export const log = {
       context: { changes },
     }),
 
-  projectDeleted: (orgId: string, actorId: string, projectId: string, projectName: string) =>
+  projectDeleted: (bandId: string, actorId: string, projectId: string, projectName: string) =>
     logActivity({
-      orgId,
+      bandId,
       actorId,
       action: 'delete',
       actionPast: 'deleted',
@@ -168,14 +168,14 @@ export const log = {
 
   // Tasks
   taskCreated: (
-    orgId: string,
+    bandId: string,
     actorId: string,
     taskId: string,
     taskTitle: string,
     projectName?: string
   ) =>
     logActivity({
-      orgId,
+      bandId,
       actorId,
       action: 'create',
       actionPast: 'created',
@@ -185,9 +185,9 @@ export const log = {
       context: { project: projectName },
     }),
 
-  taskUpdated: (orgId: string, actorId: string, taskId: string, taskTitle: string, changes: any) =>
+  taskUpdated: (bandId: string, actorId: string, taskId: string, taskTitle: string, changes: any) =>
     logActivity({
-      orgId,
+      bandId,
       actorId,
       action: 'update',
       actionPast: 'updated',
@@ -197,9 +197,9 @@ export const log = {
       context: { changes },
     }),
 
-  taskCompleted: (orgId: string, actorId: string, taskId: string, taskTitle: string) =>
+  taskCompleted: (bandId: string, actorId: string, taskId: string, taskTitle: string) =>
     logActivity({
-      orgId,
+      bandId,
       actorId,
       action: 'complete',
       actionPast: 'completed',
@@ -208,9 +208,9 @@ export const log = {
       entityName: taskTitle,
     }),
 
-  taskDeleted: (orgId: string, actorId: string, taskId: string, taskTitle: string) =>
+  taskDeleted: (bandId: string, actorId: string, taskId: string, taskTitle: string) =>
     logActivity({
-      orgId,
+      bandId,
       actorId,
       action: 'delete',
       actionPast: 'deleted',
@@ -220,9 +220,9 @@ export const log = {
     }),
 
   // Members
-  memberInvited: (orgId: string, actorId: string, invitedEmail: string) =>
+  memberInvited: (bandId: string, actorId: string, invitedEmail: string) =>
     logActivity({
-      orgId,
+      bandId,
       actorId,
       action: 'invite',
       actionPast: 'invited',
@@ -230,9 +230,9 @@ export const log = {
       entityName: invitedEmail,
     }),
 
-  memberJoined: (orgId: string, memberId: string, memberName: string) =>
+  memberJoined: (bandId: string, memberId: string, memberName: string) =>
     logActivity({
-      orgId,
+      bandId,
       actorId: memberId,
       action: 'join',
       actionPast: 'joined',
@@ -241,15 +241,15 @@ export const log = {
       entityName: memberName,
     }),
 
-  // Organization
-  organizationCreated: (orgId: string, actorId: string, orgName: string) =>
+  // Band
+  organizationCreated: (bandId: string, actorId: string, orgName: string) =>
     logActivity({
-      orgId,
+      bandId,
       actorId,
       action: 'create',
       actionPast: 'created',
-      entityType: 'organization',
-      entityId: orgId,
+      entityType: 'Band',
+      entityId: bandId,
       entityName: orgName,
     }),
 };

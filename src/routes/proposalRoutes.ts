@@ -17,27 +17,27 @@ const router = express.Router();
 router.use(requireAuth);
 
 // Create proposal (must be org member)
-router.post('/:org_id/proposals', requireOrgMember, createProposal);
+router.post('/:band_Id/proposals', requireOrgMember, createProposal);
 
 // Get org proposals
-router.get('/:org_id/proposals', getProposals);
+router.get('/:band_Id/proposals', getProposals);
 
 // Get proposal details
-router.get('/:org_id/proposals/:proposal_id', getProposal);
+router.get('/:band_Id/proposals/:proposal_id', getProposal);
 
 // Submit for review
-router.post('/:org_id/proposals/:proposal_id/submit', requireOrgMember, submitProposal);
+router.post('/:band_Id/proposals/:proposal_id/submit', requireOrgMember, submitProposal);
 
 // Review proposal (steward only - checked in controller)
-router.post('/:org_id/proposals/:proposal_id/review', requireOrgMember, reviewProposal);
+router.post('/:band_Id/proposals/:proposal_id/review', requireOrgMember, reviewProposal);
 
 // Vote on proposal
-router.post('/:org_id/proposals/:proposal_id/vote', requireOrgMember, voteOnProposal);
+router.post('/:band_Id/proposals/:proposal_id/vote', requireOrgMember, voteOnProposal);
 
 // Finalize proposal (check results)
-router.post('/:org_id/proposals/:proposal_id/finalize', requireOrgMember, finalizeProposal);
+router.post('/:band_Id/proposals/:proposal_id/finalize', requireOrgMember, finalizeProposal);
 
 // Update proposal (admin/testing)
-router.put('/:org_id/proposals/:proposal_id', requireOrgMember, updateProposal);
+router.put('/:band_Id/proposals/:proposal_id', requireOrgMember, updateProposal);
 
 export default router;

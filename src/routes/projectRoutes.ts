@@ -14,18 +14,18 @@ const router = express.Router();
 router.use(requireAuth);
 
 // Create project
-router.post('/:org_id/projects', requireOrgMember, createProject);
+router.post('/:band_Id/projects', requireOrgMember, createProject);
 
 // Get org projects
-router.get('/:org_id/projects', getProjects);
+router.get('/:band_Id/projects', getProjects);
 
 // Get project details
-router.get('/:org_id/projects/:project_id', getProject);
+router.get('/:band_Id/projects/:project_id', getProject);
 
 // Update project
-router.put('/:org_id/projects/:project_id', requireOrgMember, updateProject);
+router.put('/:band_Id/projects/:project_id', requireOrgMember, updateProject);
 
 // Delete project
-router.delete('/:org_id/projects/:project_id', requireOrgMember, deleteProject);
+router.delete('/:band_Id/projects/:project_id', requireOrgMember, deleteProject);
 
 export default router;

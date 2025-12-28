@@ -2,12 +2,12 @@ import { Request, Response } from 'express';
 import prisma from '../config/database';
 
 /**
- * Get Captain's Log entries for an organization
+ * Get Captain's Log entries for an Band
  * Supports filtering by type, actor, date range, entity
  */
 export const getCaptainsLog = async (req: Request, res: Response) => {
   try {
-    const { org_id } = req.params;
+    const { band_Id } = req.params;
     const {
       entityType,
       actorId,
@@ -19,7 +19,7 @@ export const getCaptainsLog = async (req: Request, res: Response) => {
 
     // Build filter
     const where: any = {
-      orgId: org_id,
+      bandId: band_Id,
     };
 
     if (entityType) {
@@ -93,12 +93,12 @@ export const getCaptainsLog = async (req: Request, res: Response) => {
  */
 export const getCaptainsLogEntry = async (req: Request, res: Response) => {
   try {
-    const { org_id, entry_id } = req.params;
+    const { band_Id, entry_id } = req.params;
 
     const entry = await prisma.captainsLog.findFirst({
       where: {
         id: entry_id,
-        orgId: org_id,
+        bandId: band_Id,
       },
       include: {
         actor: {

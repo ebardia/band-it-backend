@@ -7,10 +7,10 @@ const router = Router();
 // All routes require authentication
 router.use(requireAuth);
 
-// Get Captain's Log entries for organization
-router.get('/:org_id/captains-log', requireOrgMember, getCaptainsLog);
+// Get Captain's Log entries for Band
+router.get('/:band_Id/captains-log', requireOrgMember, getCaptainsLog);
 
 // Get specific entry
-router.get('/:org_id/captains-log/:entry_id', requireOrgMember, getCaptainsLogEntry);
+router.get('/:band_Id/captains-log/:entry_id', requireOrgMember, getCaptainsLogEntry);
 
 export default router;

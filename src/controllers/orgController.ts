@@ -3,7 +3,7 @@ import { asyncHandler, AppError, ErrorTypes } from '../middleware/errorHandler';
 import prisma from '../config/database';
 import { generateInviteToken } from '../utils/password';
 
-// Create organization
+// Create Band
 export const createOrganization = asyncHandler(async (req: Request, res: Response) => {
   const {
     name,
@@ -28,14 +28,14 @@ export const createOrganization = asyncHandler(async (req: Request, res: Respons
   }
 
   // Check if slug is taken
-  const existing = await prisma.organization.findUnique({ where: { slug } });
+  const existing = await prisma.band.findUnique({ where: { slug } });
   if (existing) {
-    throw new AppError('Organization slug already taken', ErrorTypes.CONFLICT_ERROR);
+    throw new AppError('Band slug already taken', ErrorTypes.CONFLICT_ERROR);
   }
 
   // Create org and founder member in transaction
   const org = await prisma.$transaction(async (tx) => {
-    const newOrg = await tx.organization.create({
+    const newOrg = await tx.Band.create({
       data: {
         name,
         slug,
@@ -54,7 +54,7 @@ export const createOrganization = asyncHandler(async (req: Request, res: Respons
     // Create founder member
     await tx.member.create({
       data: {
-        orgId: newOrg.id,
+        bandId: newOrg.id,
         userId: req.user!.userId,
         role: 'founder',
         status: 'active',
@@ -68,12 +68,12 @@ export const createOrganization = asyncHandler(async (req: Request, res: Respons
 
   res.status(201).json({
     success: true,
-    data: { organization: org },
+    data: { Band: org },
   });
 });
 
-// Get user's organizations
-export const getUserOrganizations = asyncHandler(async (req: Request, res: Response) => {
+// Get user's bands
+export const getUserbands = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) {
     throw new AppError('Authentication required', ErrorTypes.AUTHENTICATION_ERROR);
   }
@@ -84,7 +84,7 @@ export const getUserOrganizations = asyncHandler(async (req: Request, res: Respo
       status: 'active',
     },
     include: {
-      organization: {
+      band: {
         select: {
           id: true,
           name: true,
@@ -104,24 +104,24 @@ export const getUserOrganizations = asyncHandler(async (req: Request, res: Respo
     },
   });
 
-  const organizations = memberships.map((m) => ({
-    ...m.organization,
+  const bands = memberships.map((m) => ({
+    ...m.band,
     role: m.role,
     joinedAt: m.joinedAt,
   }));
 
   res.json({
     success: true,
-    data: { organizations },
+    data: { bands },
   });
 });
 
-// Get organization details
+// Get Band details
 export const getOrganization = asyncHandler(async (req: Request, res: Response) => {
-  const { org_id } = req.params;
+  const { id } = req.params;
 
-  const org = await prisma.organization.findUnique({
-    where: { id: org_id },
+  const org = await prisma.band.findUnique({
+    where: { id },
     include: {
       members: {
         where: { status: 'active' },
@@ -141,18 +141,18 @@ export const getOrganization = asyncHandler(async (req: Request, res: Response) 
   });
 
   if (!org) {
-    throw new AppError('Organization not found', ErrorTypes.NOT_FOUND_ERROR);
+    throw new AppError('Band not found', ErrorTypes.NOT_FOUND_ERROR);
   }
 
   res.json({
     success: true,
-    data: { organization: org },
+    data: { Band: org },
   });
 });
 
 // Invite member
 export const inviteMember = asyncHandler(async (req: Request, res: Response) => {
-  const { org_id } = req.params;
+  const { band_Id } = req.params;
   const { email, role } = req.body;
 
   if (!req.member || !['founder', 'steward'].includes(req.member.role)) {
@@ -161,7 +161,7 @@ export const inviteMember = asyncHandler(async (req: Request, res: Response) => 
 
   // Check if already a member
   const existing = await prisma.member.findFirst({
-    where: { orgId: org_id, user: { email } },
+    where: { bandId: band_Id, user: { email } },
   });
 
   if (existing) {
@@ -174,7 +174,7 @@ export const inviteMember = asyncHandler(async (req: Request, res: Response) => 
 
   const member = await prisma.member.create({
     data: {
-      orgId: org_id,
+      bandId: band_Id,
       userId: null, // Will link when they accept
       email,
       role: role || 'working',
@@ -190,5 +190,50 @@ export const inviteMember = asyncHandler(async (req: Request, res: Response) => 
   res.status(201).json({
     success: true,
     data: { member, inviteUrl: `${process.env.FRONTEND_URL}/invite/${inviteToken}` },
+  });
+});
+
+// Update band profile
+// Update band profile
+export const updateBandProfile = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const userId = (req as any).user?.userId;
+  const {
+    tagline,
+    fullDescription,
+    coreValues,
+    decisionGuidelines,
+    inclusionStatement,
+    membershipPolicy,
+  } = req.body;
+
+  // Check if user is a member of this band
+  const member = await prisma.member.findFirst({
+    where: {
+      bandId: id,
+      userId,
+      status: 'active',
+    },
+  });
+
+  if (!member) {
+    throw new AppError('Not a member of this band', ErrorTypes.FORBIDDEN);
+  }
+
+  const band = await prisma.band.update({
+    where: { id },
+    data: {
+      tagline,
+      fullDescription,
+      coreValues,
+      decisionGuidelines,
+      inclusionStatement,
+      membershipPolicy,
+    },
+  });
+
+  res.json({
+    success: true,
+    data: { band },
   });
 });

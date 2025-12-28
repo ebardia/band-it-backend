@@ -8,12 +8,17 @@ import authRoutes from './routes/authRoutes';
 import logger from './utils/logger';
 import prisma from './config/database';
 import captainsLogRoutes from './routes/captainsLogRoutes';
+import aiRoutes from './routes/aiRoutes';
+import uploadRoutes from './routes/uploadRoutes';
+import path from 'path';
 
 // Create Express app
 const app = express();
 
 // Middleware
-app.use(helmet()); // Security headers
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
 app.use(cors({
   origin: config.frontendUrl,
   credentials: true,
@@ -37,17 +42,24 @@ app.get('/health', (req: Request, res: Response) => {
 app.use('/api/auth', authRoutes);
 
 import orgRoutes from './routes/orgRoutes';
-app.use('/api/organizations', orgRoutes);
+app.use('/api/bands', orgRoutes);
 
 import proposalRoutes from './routes/proposalRoutes';
-app.use('/api/organizations', proposalRoutes);
+app.use('/api/bands', proposalRoutes);
 
 import projectRoutes from './routes/projectRoutes';
 import taskRoutes from './routes/taskRoutes';
-app.use('/api/organizations', projectRoutes);
-app.use('/api/organizations', taskRoutes);
+app.use('/api/bands', projectRoutes);
+app.use('/api/bands', taskRoutes);
 
-app.use('/api/organizations', captainsLogRoutes);
+app.use('/api/bands', captainsLogRoutes);
+app.use('/api/ai', aiRoutes);
+
+// Serve uploaded files
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
+// Upload routes
+app.use('/api/bands', uploadRoutes);
 
 // 404 handler
 app.use('*', (req: Request, res: Response) => {

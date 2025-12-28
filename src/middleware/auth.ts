@@ -63,27 +63,27 @@ export const requireRole = (...roles: string[]) => {
   );
 };
 
-// Require organization membership
+// Require Band membership
 export const requireOrgMember = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
   if (!req.user) {
     throw new AppError('Authentication required', ErrorTypes.AUTHENTICATION_ERROR);
   }
 
-  const orgId = req.params.org_id;
-  if (!orgId) {
-    throw new AppError('Organization ID required', ErrorTypes.VALIDATION_ERROR);
+  const bandId = req.params.band_Id;
+  if (!bandId) {
+    throw new AppError('Band ID required', ErrorTypes.VALIDATION_ERROR);
   }
 
   const member = await prisma.member.findFirst({
     where: {
-      orgId,
+      bandId,
       userId: req.user.userId,
       status: 'active',
     },
   });
 
   if (!member) {
-    throw new AppError('Not a member of this organization', ErrorTypes.AUTHORIZATION_ERROR);
+    throw new AppError('Not a member of this Band', ErrorTypes.AUTHORIZATION_ERROR);
   }
 
   req.member = member;

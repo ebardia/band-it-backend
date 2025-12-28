@@ -5,7 +5,7 @@ import { log } from '../utils/captainsLog';
 
 // Create task
 export const createTask = asyncHandler(async (req: Request, res: Response) => {
-  const { org_id, project_id } = req.params;
+  const { band_Id, project_id } = req.params;
   const {
     title,
     description,
@@ -30,7 +30,7 @@ export const createTask = asyncHandler(async (req: Request, res: Response) => {
 
   const task = await prisma.task.create({
     data: {
-      orgId: org_id,
+      bandId: band_Id,
       projectId: project_id,
       title,
       description: description || null,
@@ -68,7 +68,7 @@ export const createTask = asyncHandler(async (req: Request, res: Response) => {
 
   // LOG ACTIVITY
   await log.taskCreated(
-    org_id,
+    band_Id,
     req.member.id,
     task.id,
     task.title,
@@ -183,7 +183,7 @@ export const getTask = asyncHandler(async (req: Request, res: Response) => {
 
 // Update task
 export const updateTask = asyncHandler(async (req: Request, res: Response) => {
-  const { org_id, project_id, task_id } = req.params;
+  const { band_Id, project_id, task_id } = req.params;
   const { title, description, status, priority, assignedTo, dueDate } = req.body;
 
   if (!req.member) {
@@ -327,7 +327,7 @@ export const updateTask = asyncHandler(async (req: Request, res: Response) => {
   // LOG ACTIVITY (only if there were actual changes)
   if (Object.keys(changes).length > 0) {
     await log.taskUpdated(
-      org_id,
+      band_Id,
       req.member.id,
       task_id,
       updated.title,
@@ -343,7 +343,7 @@ export const updateTask = asyncHandler(async (req: Request, res: Response) => {
 
 // Delete task
 export const deleteTask = asyncHandler(async (req: Request, res: Response) => {
-  const { org_id, project_id, task_id } = req.params;
+  const { band_Id, project_id, task_id } = req.params;
 
   if (!req.member) {
     throw new AppError('Must be a member', ErrorTypes.AUTHORIZATION_ERROR);
@@ -357,7 +357,7 @@ export const deleteTask = asyncHandler(async (req: Request, res: Response) => {
 
   // LOG ACTIVITY (before deletion)
   await log.taskDeleted(
-    org_id,
+    band_Id,
     req.member.id,
     task_id,
     task.title
@@ -373,7 +373,7 @@ export const deleteTask = asyncHandler(async (req: Request, res: Response) => {
 
 // Complete task
 export const completeTask = asyncHandler(async (req: Request, res: Response) => {
-  const { org_id, project_id, task_id } = req.params;
+  const { band_Id, project_id, task_id } = req.params;
 
   if (!req.member) {
     throw new AppError('Must be a member', ErrorTypes.AUTHORIZATION_ERROR);
@@ -407,7 +407,7 @@ export const completeTask = asyncHandler(async (req: Request, res: Response) => 
 
   // LOG ACTIVITY
   await log.taskCompleted(
-    org_id,
+    band_Id,
     req.member.id,
     task_id,
     task.title

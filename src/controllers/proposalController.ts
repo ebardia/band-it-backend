@@ -4,7 +4,7 @@ import prisma from '../config/database';
 
 // Create proposal
 export const createProposal = asyncHandler(async (req: Request, res: Response) => {
-  const { org_id } = req.params;
+  const { band_Id } = req.params;
   const {
     title,
     objective,
@@ -25,9 +25,9 @@ export const createProposal = asyncHandler(async (req: Request, res: Response) =
     throw new AppError('Missing required fields', ErrorTypes.VALIDATION_ERROR);
   }
 
-  const org = await prisma.organization.findUnique({ where: { id: org_id } });
+  const org = await prisma.band.findUnique({ where: { id: band_Id } });
   if (!org) {
-    throw new AppError('Organization not found', ErrorTypes.NOT_FOUND_ERROR);
+    throw new AppError('Band not found', ErrorTypes.NOT_FOUND_ERROR);
   }
 
   // Calculate voting end time
@@ -37,8 +37,8 @@ export const createProposal = asyncHandler(async (req: Request, res: Response) =
   // Create proposal
   const proposal = await prisma.proposal.create({
     data: {
-      organization: {
-        connect: { id: org_id }
+      band: {
+        connect: { id: band_Id }
       },
       creator: {
         connect: { id: req.member.id }
@@ -97,12 +97,12 @@ export const createProposal = asyncHandler(async (req: Request, res: Response) =
 });
 
 
-// Get organization proposals
+// Get Band proposals
 export const getProposals = asyncHandler(async (req: Request, res: Response) => {
-  const { org_id } = req.params;
+  const { band_Id } = req.params;
   const { state } = req.query;
 
-  const where: any = { orgId: org_id };
+  const where: any = { bandId: band_Id };
   if (state) {
     where.state = state;
   }
@@ -378,7 +378,7 @@ export const finalizeProposal = asyncHandler(async (req: Request, res: Response)
   const proposal = await prisma.proposal.findUnique({
     where: { id: proposal_id },
     include: {
-      organization: true,
+      Band: true,
       votes: true,
     },
   });
@@ -398,15 +398,15 @@ export const finalizeProposal = asyncHandler(async (req: Request, res: Response)
   // Calculate results
   const totalVotes = proposal.votesApprove + proposal.votesReject + proposal.votesAbstain;
   const activeMembers = await prisma.member.count({
-    where: { orgId: proposal.orgId, status: 'active' },
+    where: { bandId: proposal.bandId, status: 'active' },
   });
 
   // Check quorum
-  const quorumMet = (totalVotes / activeMembers) * 100 >= proposal.organization.quorumPercentage;
+  const quorumMet = (totalVotes / activeMembers) * 100 >= proposal.Band.quorumPercentage;
 
   // Check approval
   const approvalRate = totalVotes > 0 ? (proposal.votesApprove / totalVotes) * 100 : 0;
-  const approved = quorumMet && approvalRate >= proposal.organization.approvalThreshold;
+  const approved = quorumMet && approvalRate >= proposal.Band.approvalThreshold;
 
   const updated = await prisma.proposal.update({
     where: { id: proposal_id },
@@ -429,7 +429,7 @@ export const finalizeProposal = asyncHandler(async (req: Request, res: Response)
         quorumMet,
         quorumPercentage: (totalVotes / activeMembers) * 100,
         approvalRate,
-        approvalThreshold: proposal.organization.approvalThreshold,
+        approvalThreshold: proposal.Band.approvalThreshold,
         approved,
       },
     },
@@ -448,7 +448,7 @@ export const finalizeProposal = asyncHandler(async (req: Request, res: Response)
         quorumMet,
         quorumPercentage: (totalVotes / activeMembers) * 100,
         approvalRate,
-        approvalThreshold: proposal.organization.approvalThreshold,
+        approvalThreshold: proposal.Band.approvalThreshold,
         approved,
       },
     },

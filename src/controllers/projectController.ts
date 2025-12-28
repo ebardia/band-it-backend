@@ -5,7 +5,7 @@ import { log } from '../utils/captainsLog';
 
 // Create project (from approved proposal)
 export const createProject = asyncHandler(async (req: Request, res: Response) => {
-  const { org_id } = req.params;
+  const { band_Id } = req.params;
   const {
     proposalId,
     name,
@@ -33,7 +33,7 @@ export const createProject = asyncHandler(async (req: Request, res: Response) =>
 
   const project = await prisma.project.create({
     data: {
-      orgId: org_id,
+      bandId: band_Id,
       proposalId,
       name,
       description: description || null,
@@ -65,7 +65,7 @@ export const createProject = asyncHandler(async (req: Request, res: Response) =>
 
   // LOG ACTIVITY
   await log.projectCreated(
-    org_id,
+    band_Id,
     req.member.id,
     project.id,
     project.name,
@@ -78,12 +78,12 @@ export const createProject = asyncHandler(async (req: Request, res: Response) =>
   });
 });
 
-// Get organization projects
+// Get Band projects
 export const getProjects = asyncHandler(async (req: Request, res: Response) => {
-  const { org_id } = req.params;
+  const { band_Id } = req.params;
   const { status, proposalId } = req.query;
 
-  const where: any = { orgId: org_id };
+  const where: any = { bandId: band_Id };
   
   if (status) where.status = status;
   if (proposalId) where.proposalId = proposalId;
@@ -196,7 +196,7 @@ export const getProject = asyncHandler(async (req: Request, res: Response) => {
 
 // Update project
 export const updateProject = asyncHandler(async (req: Request, res: Response) => {
-  const { org_id, project_id } = req.params;
+  const { band_Id, project_id } = req.params;
   const { name, description, status, startDate, targetDate } = req.body;
 
   // DEBUG
@@ -282,7 +282,7 @@ export const updateProject = asyncHandler(async (req: Request, res: Response) =>
   if (Object.keys(changes).length > 0) {
     console.log('=== LOGGING ACTIVITY ===');
     await log.projectUpdated(
-      org_id,
+      band_Id,
       req.member.id,
       project_id,
       updated.name,
@@ -300,7 +300,7 @@ export const updateProject = asyncHandler(async (req: Request, res: Response) =>
 
 // Delete project
 export const deleteProject = asyncHandler(async (req: Request, res: Response) => {
-  const { org_id, project_id } = req.params;
+  const { band_Id, project_id } = req.params;
 
   if (!req.member) {
     throw new AppError('Must be a member', ErrorTypes.AUTHORIZATION_ERROR);
@@ -314,7 +314,7 @@ export const deleteProject = asyncHandler(async (req: Request, res: Response) =>
 
   // LOG ACTIVITY (before deletion)
   await log.projectDeleted(
-    org_id,
+    band_Id,
     req.member.id,
     project_id,
     project.name

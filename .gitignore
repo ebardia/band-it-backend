@@ -35,3 +35,5 @@ coverage/
 
 # Prisma
 prisma/migrations/migration_lock.toml
+uploads/
+backup_before_band_rename.dump
