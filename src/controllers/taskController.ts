@@ -418,3 +418,166 @@ export const completeTask = asyncHandler(async (req: Request, res: Response) => 
     data: { task: updated },
   });
 });
+
+// Add comment to task
+export const addTaskComment = asyncHandler(async (req: Request, res: Response) => {
+  const { task_id } = req.params;
+  const { body, parentCommentId } = req.body;
+
+  if (!req.member) {
+    throw new AppError('Must be a member', ErrorTypes.AUTHORIZATION_ERROR);
+  }
+
+  if (!body) {
+    throw new AppError('Comment body is required', ErrorTypes.VALIDATION_ERROR);
+  }
+
+  const comment = await prisma.comment.create({
+    data: {
+      taskId: task_id,
+      body,
+      parentCommentId: parentCommentId || null,
+      createdBy: req.member.id,
+    },
+    include: {
+      creator: {
+        include: {
+          user: {
+            select: {
+              firstName: true,
+              lastName: true,
+              displayName: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  res.status(201).json({
+    success: true,
+    data: { comment },
+  });
+});
+
+// Get task comments
+export const getTaskComments = asyncHandler(async (req: Request, res: Response) => {
+  const { task_id } = req.params;
+
+  const comments = await prisma.comment.findMany({
+    where: { 
+      taskId: task_id,
+      parentCommentId: null, // Only top-level comments
+    },
+    include: {
+      creator: {
+        include: {
+          user: {
+            select: {
+              firstName: true,
+              lastName: true,
+              displayName: true,
+            },
+          },
+        },
+      },
+      replies: {
+        include: {
+          creator: {
+            include: {
+              user: {
+                select: {
+                  firstName: true,
+                  lastName: true,
+                  displayName: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: { createdAt: 'asc' },
+      },
+    },
+    orderBy: { createdAt: 'asc' },
+  });
+
+  res.json({
+    success: true,
+    data: { comments },
+  });
+});
+
+// Update comment
+export const updateTaskComment = asyncHandler(async (req: Request, res: Response) => {
+  const { comment_id } = req.params;
+  const { body } = req.body;
+
+  if (!req.member) {
+    throw new AppError('Must be a member', ErrorTypes.AUTHORIZATION_ERROR);
+  }
+
+  const comment = await prisma.comment.findUnique({
+    where: { id: comment_id },
+  });
+
+  if (!comment) {
+    throw new AppError('Comment not found', ErrorTypes.NOT_FOUND_ERROR);
+  }
+
+  if (comment.createdBy !== req.member.id) {
+    throw new AppError('Not authorized to edit this comment', ErrorTypes.AUTHORIZATION_ERROR);
+  }
+
+  const updated = await prisma.comment.update({
+    where: { id: comment_id },
+    data: { body },
+    include: {
+      creator: {
+        include: {
+          user: {
+            select: {
+              firstName: true,
+              lastName: true,
+              displayName: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  res.json({
+    success: true,
+    data: { comment: updated },
+  });
+});
+
+// Delete comment
+export const deleteTaskComment = asyncHandler(async (req: Request, res: Response) => {
+  const { comment_id } = req.params;
+
+  if (!req.member) {
+    throw new AppError('Must be a member', ErrorTypes.AUTHORIZATION_ERROR);
+  }
+
+  const comment = await prisma.comment.findUnique({
+    where: { id: comment_id },
+  });
+
+  if (!comment) {
+    throw new AppError('Comment not found', ErrorTypes.NOT_FOUND_ERROR);
+  }
+
+  if (comment.createdBy !== req.member.id) {
+    throw new AppError('Not authorized to delete this comment', ErrorTypes.AUTHORIZATION_ERROR);
+  }
+
+  await prisma.comment.delete({
+    where: { id: comment_id },
+  });
+
+  res.json({
+    success: true,
+    data: { message: 'Comment deleted' },
+  });
+});

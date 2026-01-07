@@ -62,12 +62,14 @@ model User {
   members Member[]
   endorsementsGiven Endorsement[] @relation("GivenEndorsements")
   endorsementsReceived Endorsement[] @relation("ReceivedEndorsements")
+  platformInvitationsSent PlatformInvitation[]
+  joinRequests JoinRequest[]
 
   @@map("users")
 }
 
 // ============================================
-// bandS
+// BANDS
 // ============================================
 
 model band {
@@ -118,6 +120,11 @@ model band {
   decisionModel          String?  @map("decision_model")
   approvalThresholds     Json?    @map("approval_thresholds")
   
+  // Role System (NEW - v3.0)
+  // Array of enabled role types - bands choose which roles they want to use
+  // Valid values: "founder", "governor", "steward", "member", "voting_member", "observer"
+  enabledRoles String[] @default(["founder", "member"]) @map("enabled_roles")
+  
   // Auto-generated Impact Summary (NEW)
   impactSummary      String?   @map("impact_summary") @db.Text
   lastSummaryUpdate  DateTime? @map("last_summary_update")
@@ -148,6 +155,8 @@ model band {
   captainsLog     CaptainsLog[]
   images          BandImage[]
   documents       BandDocument[]
+  discussions     Discussion[]
+  joinRequests    JoinRequest[]
 
   @@map("bands")
 }
@@ -212,10 +221,24 @@ model Member {
   userId String @map("user_id") // NOW REQUIRED (not optional)
   
   // Membership-specific (NOT identity - that's on User)
-  role   String // 'founder', 'steward', 'working', 'advisor'
+  // NEW ROLE SYSTEM (v3.0) - 6 predefined roles with specific permission sets
+  // Valid values: 'founder', 'governor', 'steward', 'member', 'voting_member', 'observer'
+  // 
+  // PERMISSIONS MATRIX:
+  // - founder: Full access (governance voting, manage members/settings)
+  // - governor: Everything except manage members/settings (includes governance voting)
+  // - steward: Moderate & approve proposals/tasks, create proposals/projects/tasks, vote on proposals
+  // - member: Create proposals/projects/tasks, vote on proposals, take tasks, comment
+  // - voting_member: Vote on proposals, take tasks, comment, view
+  // - observer: View only
+  //
+  // NOTE: Users can have different roles in different bands
+  // (e.g., founder in Band A, voting_member in Band B)
+  role   String // 'founder' | 'governor' | 'steward' | 'member' | 'voting_member' | 'observer'
+  
   status String @default("pending") // 'pending', 'active', 'inactive'
   
-  // Invitation
+  // Invitation (DEPRECATED - moved to JoinRequest model)
   inviteToken       String?   @map("invite_token")
   inviteTokenExpiry DateTime? @map("invite_token_expiry")
   invitedBy         String?   @map("invited_by")
@@ -254,9 +277,78 @@ model Member {
   captainsLogEntries CaptainsLog[] @relation("CaptainsLogActor")
   uploadedImages    BandImage[]
   uploadedDocuments BandDocument[]
+  discussionsCreated Discussion[] @relation("DiscussionCreator")
+  commentsCreated    Comment[]    @relation("CommentCreator")
+  joinRequestsReviewed JoinRequest[]
 
   @@unique([bandId, userId]) // One membership per user per band
   @@map("members")
+}
+
+// ============================================
+// PLATFORM INVITATIONS (Any user can invite friends to BAND IT)
+// ============================================
+
+model PlatformInvitation {
+  id              String    @id @default(uuid())
+  email           String
+  token           String    @unique
+  tokenExpiry     DateTime  @map("token_expiry")
+  
+  // Optional personal message
+  message         String?   @db.Text
+  
+  // Who invited them
+  invitedBy       String    @map("invited_by")
+  invitedAt       DateTime  @default(now()) @map("invited_at")
+  
+  // Status tracking
+  status          String    @default("pending") // pending | accepted | expired
+  acceptedAt      DateTime? @map("accepted_at")
+  acceptedByUserId String?  @map("accepted_by_user_id")
+  
+  // Relations
+  inviter User @relation(fields: [invitedBy], references: [id], onDelete: Cascade)
+  
+  @@index([email])
+  @@index([token])
+  @@index([status])
+  @@map("platform_invitations")
+}
+
+// ============================================
+// JOIN REQUESTS (Users request to join bands)
+// ============================================
+
+model JoinRequest {
+  id              String    @id @default(uuid())
+  bandId          String    @map("band_id")
+  userId          String    @map("user_id")
+  
+  // User's pitch
+  message         String?   @db.Text  // Why they want to join, their skills, etc.
+  
+  // Status
+  status          String    @default("pending") // pending | approved | rejected
+  
+  // Timing
+  requestedAt     DateTime  @default(now()) @map("requested_at")
+  reviewedAt      DateTime? @map("reviewed_at")
+  
+  // Review details
+  reviewedBy      String?   @map("reviewed_by") // memberId who approved/rejected
+  assignedRole    String?   @map("assigned_role") // Role assigned when approved
+  reviewNotes     String?   @db.Text @map("review_notes") // Why approved/rejected
+  
+  // Relations
+  band     band   @relation(fields: [bandId], references: [id], onDelete: Cascade)
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reviewer Member? @relation(fields: [reviewedBy], references: [id], onDelete: SetNull)
+  
+  @@unique([bandId, userId]) // Can't request twice
+  @@index([bandId, status])
+  @@index([userId, status])
+  @@map("join_requests")
 }
 
 // ============================================
@@ -746,4 +838,72 @@ model CaptainsLog {
   @@index([bandId, timestamp])
   @@index([entityType, entityId])
   @@index([actorId])
+}
+
+// ============================================
+// DISCUSSIONS (General Band Conversations)
+// ============================================
+
+model Discussion {
+  id     String @id @default(uuid())
+  bandId String @map("band_id")
+  
+  // Content
+  title String
+  body  String @db.Text
+  
+  // Metrics (denormalized for performance)
+  replyCount    Int      @default(0) @map("reply_count")
+  lastActivityAt DateTime @default(now()) @map("last_activity_at")
+  
+  // Metadata
+  createdBy String   @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  band    band   @relation(fields: [bandId], references: [id], onDelete: Cascade)
+  creator Member @relation("DiscussionCreator", fields: [createdBy], references: [id])
+  comments Comment[]
+
+  @@index([bandId, lastActivityAt])
+  @@map("discussions")
+}
+
+// ============================================
+// COMMENTS (Threaded Comments on Any Entity)
+// ============================================
+
+model Comment {
+  id String @id @default(uuid())
+  
+  // What is this comment on? (one will be set)
+  discussionId String? @map("discussion_id")
+  proposalId   String? @map("proposal_id")
+  projectId    String? @map("project_id")
+  taskId       String? @map("task_id")
+  
+  // Content
+  body String @db.Text
+  
+  // Threading (one level deep - replies)
+  parentCommentId String? @map("parent_comment_id")
+  
+  // Metadata
+  createdBy String   @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  discussion    Discussion? @relation(fields: [discussionId], references: [id], onDelete: Cascade)
+  parentComment Comment?    @relation("CommentReplies", fields: [parentCommentId], references: [id], onDelete: Cascade)
+  replies       Comment[]   @relation("CommentReplies")
+  creator       Member      @relation("CommentCreator", fields: [createdBy], references: [id])
+
+  @@index([discussionId, createdAt])
+  @@index([proposalId, createdAt])
+  @@index([projectId, createdAt])
+  @@index([taskId, createdAt])
+  @@index([parentCommentId])
+  @@map("comments")
 }

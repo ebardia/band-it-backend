@@ -11,6 +11,7 @@ import captainsLogRoutes from './routes/captainsLogRoutes';
 import aiRoutes from './routes/aiRoutes';
 import uploadRoutes from './routes/uploadRoutes';
 import path from 'path';
+import discussionRoutes from './routes/discussions';
 
 // Create Express app
 const app = express();
@@ -54,6 +55,8 @@ app.use('/api/bands', taskRoutes);
 
 app.use('/api/bands', captainsLogRoutes);
 app.use('/api/ai', aiRoutes);
+
+app.use('/api/bands', discussionRoutes);
 
 // Serve uploaded files
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));

@@ -199,10 +199,6 @@ export const updateProject = asyncHandler(async (req: Request, res: Response) =>
   const { band_Id, project_id } = req.params;
   const { name, description, status, startDate, targetDate } = req.body;
 
-  // DEBUG
-  console.log('=== UPDATE REQUEST ===');
-  console.log('Body:', { name, description, status, startDate, targetDate });
-
   if (!req.member) {
     throw new AppError('Must be a member', ErrorTypes.AUTHORIZATION_ERROR);
   }
@@ -212,16 +208,6 @@ export const updateProject = asyncHandler(async (req: Request, res: Response) =>
   if (!project) {
     throw new AppError('Project not found', ErrorTypes.NOT_FOUND_ERROR);
   }
-
-  // DEBUG
-  console.log('=== EXISTING PROJECT ===');
-  console.log('Project:', { 
-    name: project.name,
-    description: project.description, 
-    status: project.status,
-    startDate: project.startDate, 
-    targetDate: project.targetDate 
-  });
 
   // Track changes for logging
   const changes: any = {};
@@ -237,10 +223,6 @@ export const updateProject = asyncHandler(async (req: Request, res: Response) =>
   if (startDate !== undefined) {
     const oldDate = project.startDate ? new Date(project.startDate).toLocaleDateString() : 'none';
     const newDate = startDate ? new Date(startDate).toLocaleDateString() : 'none';
-    console.log('=== START DATE COMPARISON ===');
-    console.log('Old:', oldDate);
-    console.log('New:', newDate);
-    console.log('Equal?', oldDate === newDate);
     if (oldDate !== newDate) {
       changes.startDate = { from: oldDate, to: newDate };
     }
@@ -248,18 +230,10 @@ export const updateProject = asyncHandler(async (req: Request, res: Response) =>
   if (targetDate !== undefined) {
     const oldDate = project.targetDate ? new Date(project.targetDate).toLocaleDateString() : 'none';
     const newDate = targetDate ? new Date(targetDate).toLocaleDateString() : 'none';
-    console.log('=== TARGET DATE COMPARISON ===');
-    console.log('Old:', oldDate);
-    console.log('New:', newDate);
-    console.log('Equal?', oldDate === newDate);
     if (oldDate !== newDate) {
       changes.targetDate = { from: oldDate, to: newDate };
     }
   }
-
-  // DEBUG
-  console.log('=== CHANGES DETECTED ===');
-  console.log('Changes:', changes);
 
   const updates: any = {};
   if (name !== undefined) updates.name = name;
@@ -280,7 +254,6 @@ export const updateProject = asyncHandler(async (req: Request, res: Response) =>
 
   // LOG ACTIVITY (only if there were actual changes)
   if (Object.keys(changes).length > 0) {
-    console.log('=== LOGGING ACTIVITY ===');
     await log.projectUpdated(
       band_Id,
       req.member.id,
@@ -288,8 +261,6 @@ export const updateProject = asyncHandler(async (req: Request, res: Response) =>
       updated.name,
       changes
     );
-  } else {
-    console.log('=== NO CHANGES TO LOG ===');
   }
 
   res.json({
@@ -325,5 +296,168 @@ export const deleteProject = asyncHandler(async (req: Request, res: Response) =>
   res.json({
     success: true,
     data: { message: 'Project deleted' },
+  });
+});
+
+// Add comment to project
+export const addProjectComment = asyncHandler(async (req: Request, res: Response) => {
+  const { project_id } = req.params;
+  const { body, parentCommentId } = req.body;
+
+  if (!req.member) {
+    throw new AppError('Must be a member', ErrorTypes.AUTHORIZATION_ERROR);
+  }
+
+  if (!body) {
+    throw new AppError('Comment body is required', ErrorTypes.VALIDATION_ERROR);
+  }
+
+  const comment = await prisma.comment.create({
+    data: {
+      projectId: project_id,
+      body,
+      parentCommentId: parentCommentId || null,
+      createdBy: req.member.id,
+    },
+    include: {
+      creator: {
+        include: {
+          user: {
+            select: {
+              firstName: true,
+              lastName: true,
+              displayName: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  res.status(201).json({
+    success: true,
+    data: { comment },
+  });
+});
+
+// Get project comments
+export const getProjectComments = asyncHandler(async (req: Request, res: Response) => {
+  const { project_id } = req.params;
+
+  const comments = await prisma.comment.findMany({
+    where: { 
+      projectId: project_id,
+      parentCommentId: null, // Only top-level comments
+    },
+    include: {
+      creator: {
+        include: {
+          user: {
+            select: {
+              firstName: true,
+              lastName: true,
+              displayName: true,
+            },
+          },
+        },
+      },
+      replies: {
+        include: {
+          creator: {
+            include: {
+              user: {
+                select: {
+                  firstName: true,
+                  lastName: true,
+                  displayName: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: { createdAt: 'asc' },
+      },
+    },
+    orderBy: { createdAt: 'asc' },
+  });
+
+  res.json({
+    success: true,
+    data: { comments },
+  });
+});
+
+// Update comment
+export const updateProjectComment = asyncHandler(async (req: Request, res: Response) => {
+  const { comment_id } = req.params;
+  const { body } = req.body;
+
+  if (!req.member) {
+    throw new AppError('Must be a member', ErrorTypes.AUTHORIZATION_ERROR);
+  }
+
+  const comment = await prisma.comment.findUnique({
+    where: { id: comment_id },
+  });
+
+  if (!comment) {
+    throw new AppError('Comment not found', ErrorTypes.NOT_FOUND_ERROR);
+  }
+
+  if (comment.createdBy !== req.member.id) {
+    throw new AppError('Not authorized to edit this comment', ErrorTypes.AUTHORIZATION_ERROR);
+  }
+
+  const updated = await prisma.comment.update({
+    where: { id: comment_id },
+    data: { body },
+    include: {
+      creator: {
+        include: {
+          user: {
+            select: {
+              firstName: true,
+              lastName: true,
+              displayName: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  res.json({
+    success: true,
+    data: { comment: updated },
+  });
+});
+
+// Delete comment
+export const deleteProjectComment = asyncHandler(async (req: Request, res: Response) => {
+  const { comment_id } = req.params;
+
+  if (!req.member) {
+    throw new AppError('Must be a member', ErrorTypes.AUTHORIZATION_ERROR);
+  }
+
+  const comment = await prisma.comment.findUnique({
+    where: { id: comment_id },
+  });
+
+  if (!comment) {
+    throw new AppError('Comment not found', ErrorTypes.NOT_FOUND_ERROR);
+  }
+
+  if (comment.createdBy !== req.member.id) {
+    throw new AppError('Not authorized to delete this comment', ErrorTypes.AUTHORIZATION_ERROR);
+  }
+
+  await prisma.comment.delete({
+    where: { id: comment_id },
+  });
+
+  res.json({
+    success: true,
+    data: { message: 'Comment deleted' },
   });
 });

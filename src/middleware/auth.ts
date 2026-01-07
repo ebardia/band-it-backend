@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { AppError, ErrorTypes, asyncHandler } from './errorHandler';
 import { verifyAccessToken } from '../utils/jwt';
 import prisma from '../config/database';
+import { hasPermission, Permission, Role, isValidRole } from '../utils/permissions';
 
 // Require authentication
 export const requireAuth = asyncHandler(
@@ -42,8 +43,7 @@ export const requireAuth = asyncHandler(
   }
 );
 
-
-// Require specific role
+// Require specific role (legacy - kept for backward compatibility)
 export const requireRole = (...roles: string[]) => {
   return asyncHandler(
     async (req: Request, res: Response, next: NextFunction) => {
@@ -63,7 +63,67 @@ export const requireRole = (...roles: string[]) => {
   );
 };
 
-// Require Band membership
+// NEW: Require specific permission (recommended for new code)
+export const requirePermission = (...permissions: Permission[]) => {
+  return asyncHandler(
+    async (req: Request, res: Response, next: NextFunction) => {
+      if (!req.member) {
+        throw new AppError('Member context required', ErrorTypes.AUTHORIZATION_ERROR);
+      }
+
+      // Validate role
+      if (!isValidRole(req.member.role)) {
+        throw new AppError('Invalid member role', ErrorTypes.AUTHORIZATION_ERROR);
+      }
+
+      // Check if member has ANY of the required permissions
+      const hasAnyPermission = permissions.some(permission => 
+        hasPermission(req.member.role as Role, permission)
+      );
+
+      if (!hasAnyPermission) {
+        throw new AppError(
+          `Requires one of: ${permissions.join(', ')}`,
+          ErrorTypes.AUTHORIZATION_ERROR
+        );
+      }
+
+      next();
+    }
+  );
+};
+
+// NEW: Require ALL specified permissions
+export const requireAllPermissions = (...permissions: Permission[]) => {
+  return asyncHandler(
+    async (req: Request, res: Response, next: NextFunction) => {
+      if (!req.member) {
+        throw new AppError('Member context required', ErrorTypes.AUTHORIZATION_ERROR);
+      }
+
+      // Validate role
+      if (!isValidRole(req.member.role)) {
+        throw new AppError('Invalid member role', ErrorTypes.AUTHORIZATION_ERROR);
+      }
+
+      // Check if member has ALL required permissions
+      const hasAllPermissions = permissions.every(permission => 
+        hasPermission(req.member.role as Role, permission)
+      );
+
+      if (!hasAllPermissions) {
+        throw new AppError(
+          `Missing required permissions: ${permissions.join(', ')}`,
+          ErrorTypes.AUTHORIZATION_ERROR
+        );
+      }
+
+      next();
+    }
+  );
+};
+
+// Require Band membership (loads member context)
 export const requireOrgMember = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
   if (!req.user) {
     throw new AppError('Authentication required', ErrorTypes.AUTHENTICATION_ERROR);
@@ -86,6 +146,24 @@ export const requireOrgMember = asyncHandler(async (req: Request, res: Response,
     throw new AppError('Not a member of this Band', ErrorTypes.AUTHORIZATION_ERROR);
   }
 
+  // Validate that member has a valid role
+  if (!isValidRole(member.role)) {
+    throw new AppError(
+      `Invalid member role: ${member.role}. Please contact an administrator.`,
+      ErrorTypes.AUTHORIZATION_ERROR
+    );
+  }
+
   req.member = member;
   next();
 });
+
+// NEW: Convenience middleware - require membership AND specific permission
+export const requireMemberWithPermission = (...permissions: Permission[]) => {
+  return [requireOrgMember, requirePermission(...permissions)];
+};
+
+// NEW: Convenience middleware - require membership AND all permissions
+export const requireMemberWithAllPermissions = (...permissions: Permission[]) => {
+  return [requireOrgMember, requireAllPermissions(...permissions)];
+};
